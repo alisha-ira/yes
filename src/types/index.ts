@@ -3,6 +3,11 @@ export interface GeneratedContent {
   casual: string;
   funny: string;
   hashtags: string[];
+  ctaVariations?: {
+    formal: string;
+    casual: string;
+    funny: string;
+  };
 }
 
 export type ToneType = 'formal' | 'casual' | 'funny';
