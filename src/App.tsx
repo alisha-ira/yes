@@ -13,11 +13,13 @@ import { VideoOptimizationTips } from './components/VideoOptimizationTips';
 import { Calendar } from './components/Calendar';
 import { ScheduleModal } from './components/ScheduleModal';
 import { ScheduledPostsList } from './components/ScheduledPostsList';
+import { ContentPlanGenerator } from './components/ContentPlanGenerator';
 import { generateContent } from './services/contentGenerator';
 import { resizeImageForPlatforms } from './services/imageResizer';
 import { generateVisualSuggestions, generatePostOutline } from './services/visualGenerator';
+import type { PlannedPost as PlannedPostServiceType } from './services/contentPlanner';
 import { supabase } from './lib/supabase';
-import type { GeneratedContent, ToneType, BrandProfile, ResizedImages, ContentHistory as ContentHistoryType, ScheduledPost } from './types';
+import type { GeneratedContent, ToneType, BrandProfile, ResizedImages, ContentHistory as ContentHistoryType, ScheduledPost, PlannedPost, ContentPlan } from './types';
 
 function App() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -39,7 +41,10 @@ function App() {
 
   const [showScheduleView, setShowScheduleView] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showPlanGenerator, setShowPlanGenerator] = useState(false);
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [plannedPosts, setPlannedPosts] = useState<PlannedPost[]>([]);
+  const [contentPlans, setContentPlans] = useState<ContentPlan[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
 
@@ -47,6 +52,7 @@ function App() {
     loadBrandProfile();
     loadContentHistory();
     loadScheduledPosts();
+    loadContentPlans();
   }, []);
 
   const loadBrandProfile = async () => {
@@ -84,6 +90,28 @@ function App() {
 
     if (data) {
       setScheduledPosts(data as ScheduledPost[]);
+    }
+  };
+
+  const loadContentPlans = async () => {
+    const [plansData, postsData] = await Promise.all([
+      supabase
+        .from('content_plans')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('planned_posts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('suggested_date', { ascending: true })
+    ]);
+
+    if (plansData.data) {
+      setContentPlans(plansData.data as ContentPlan[]);
+    }
+    if (postsData.data) {
+      setPlannedPosts(postsData.data as PlannedPost[]);
     }
   };
 
@@ -247,6 +275,47 @@ function App() {
     setEditingPost(post);
   };
 
+  const handleGenerateContentPlan = async (planData: {
+    planName: string;
+    startDate: string;
+    endDate: string;
+    frequency: string;
+    posts: PlannedPostServiceType[];
+  }) => {
+    const { data: planRecord } = await supabase
+      .from('content_plans')
+      .insert({
+        user_id: userId,
+        brand_profile_id: brandProfile?.id || null,
+        plan_name: planData.planName,
+        start_date: planData.startDate,
+        end_date: planData.endDate,
+        frequency: planData.frequency,
+        total_posts: planData.posts.length,
+        status: 'active'
+      })
+      .select()
+      .single();
+
+    if (planRecord) {
+      const plannedPostsData = planData.posts.map((post, index) => ({
+        content_plan_id: planRecord.id,
+        user_id: userId,
+        title: post.title,
+        suggested_date: post.suggestedDate.toISOString().split('T')[0],
+        suggested_time: post.suggestedTime,
+        rationale: post.rationale,
+        platforms: post.platforms,
+        status: 'suggested' as const,
+        order_in_plan: index
+      }));
+
+      await supabase.from('planned_posts').insert(plannedPostsData);
+      await loadContentPlans();
+      setShowScheduleView(true);
+    }
+  };
+
   const getSelectedCaption = () => {
     if (!generatedContent) return '';
     const baseCaption = generatedContent[selectedTone];
@@ -389,6 +458,27 @@ function App() {
           </>
         ) : (
           <>
+            <div className="mb-6">
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-1">
+                      AI Content Planning
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Let AI generate an optimized posting schedule based on your goals
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowPlanGenerator(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl font-semibold hover:from-green-600 hover:to-teal-700 transition-all"
+                  >
+                    Create Content Plan
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
                 <Calendar
@@ -426,6 +516,13 @@ function App() {
           title: currentDescription,
           caption: getSelectedCaption()
         }}
+      />
+
+      <ContentPlanGenerator
+        isOpen={showPlanGenerator}
+        onClose={() => setShowPlanGenerator(false)}
+        onGeneratePlan={handleGenerateContentPlan}
+        brandProfile={brandProfile}
       />
     </div>
   );

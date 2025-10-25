@@ -30,6 +30,46 @@ export interface BrandProfile {
     primary: string;
     secondary: string;
   };
+  posting_frequency?: string;
+  posting_days?: string[];
+  posting_times?: string[];
+  content_themes?: string[];
+  planning_preferences?: Record<string, any>;
+}
+
+export interface ContentPlan {
+  id: string;
+  user_id: string;
+  brand_profile_id: string | null;
+  plan_name: string;
+  start_date: string;
+  end_date: string;
+  frequency: string;
+  total_posts: number;
+  status: 'draft' | 'active' | 'completed' | 'archived';
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlannedPost {
+  id: string;
+  content_plan_id: string;
+  user_id: string;
+  title: string;
+  suggested_date: string;
+  suggested_time: string;
+  rationale: string;
+  content_generated: boolean;
+  caption: string;
+  hashtags: string[];
+  platforms: string[];
+  image_url: string;
+  status: 'suggested' | 'approved' | 'generated' | 'scheduled' | 'posted';
+  order_in_plan: number;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ResizedImages {
