@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Building2 } from 'lucide-react';
+import { Sparkles, Building2, CalendarDays } from 'lucide-react';
 import { InputSection } from './components/InputSection';
 import { CaptionSelector } from './components/CaptionSelector';
 import { HashtagDisplay } from './components/HashtagDisplay';
@@ -10,11 +10,14 @@ import { ContentHistory } from './components/ContentHistory';
 import { VisualSuggestions } from './components/VisualSuggestions';
 import { PostOutline } from './components/PostOutline';
 import { VideoOptimizationTips } from './components/VideoOptimizationTips';
+import { Calendar } from './components/Calendar';
+import { ScheduleModal } from './components/ScheduleModal';
+import { ScheduledPostsList } from './components/ScheduledPostsList';
 import { generateContent } from './services/contentGenerator';
 import { resizeImageForPlatforms } from './services/imageResizer';
 import { generateVisualSuggestions, generatePostOutline } from './services/visualGenerator';
 import { supabase } from './lib/supabase';
-import type { GeneratedContent, ToneType, BrandProfile, ResizedImages, ContentHistory as ContentHistoryType } from './types';
+import type { GeneratedContent, ToneType, BrandProfile, ResizedImages, ContentHistory as ContentHistoryType, ScheduledPost } from './types';
 
 function App() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -34,9 +37,16 @@ function App() {
   const [postOutline, setPostOutline] = useState<ReturnType<typeof generatePostOutline> | null>(null);
   const [showVideoTips, setShowVideoTips] = useState(false);
 
+  const [showScheduleView, setShowScheduleView] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
+
   useEffect(() => {
     loadBrandProfile();
     loadContentHistory();
+    loadScheduledPosts();
   }, []);
 
   const loadBrandProfile = async () => {
@@ -61,6 +71,19 @@ function App() {
 
     if (data) {
       setContentHistory(data as ContentHistoryType[]);
+    }
+  };
+
+  const loadScheduledPosts = async () => {
+    const { data } = await supabase
+      .from('scheduled_posts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('scheduled_date', { ascending: true })
+      .order('scheduled_time', { ascending: true });
+
+    if (data) {
+      setScheduledPosts(data as ScheduledPost[]);
     }
   };
 
@@ -182,6 +205,48 @@ function App() {
     loadContentHistory();
   };
 
+  const handleSchedulePost = async (scheduleData: {
+    title: string;
+    scheduledDate: string;
+    scheduledTime: string;
+    platforms: string[];
+    notes: string;
+  }) => {
+    if (!generatedContent) return;
+
+    await supabase
+      .from('scheduled_posts')
+      .insert({
+        user_id: userId,
+        brand_profile_id: brandProfile?.id || null,
+        title: scheduleData.title,
+        caption: getSelectedCaption(),
+        hashtags: generatedContent.hashtags,
+        platforms: scheduleData.platforms,
+        image_url: imageUrl || '',
+        scheduled_date: scheduleData.scheduledDate,
+        scheduled_time: scheduleData.scheduledTime,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        status: 'scheduled',
+        notes: scheduleData.notes
+      });
+
+    loadScheduledPosts();
+  };
+
+  const handleDeleteScheduledPost = async (id: string) => {
+    await supabase
+      .from('scheduled_posts')
+      .delete()
+      .eq('id', id);
+
+    loadScheduledPosts();
+  };
+
+  const handleEditScheduledPost = (post: ScheduledPost) => {
+    setEditingPost(post);
+  };
+
   const getSelectedCaption = () => {
     if (!generatedContent) return '';
     const baseCaption = generatedContent[selectedTone];
@@ -205,6 +270,17 @@ function App() {
             AI-Powered Content Generator with Visual Suggestions
           </p>
           <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setShowScheduleView(!showScheduleView)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow text-sm font-medium ${
+                showScheduleView
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white'
+                  : 'bg-white text-gray-700'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              {showScheduleView ? 'Content Generator' : 'Calendar View'}
+            </button>
             <button
               onClick={() => setShowBrandModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow text-sm font-medium text-gray-700"
@@ -251,45 +327,87 @@ function App() {
 
         {showVideoTips && <VideoOptimizationTips />}
 
-        <ContentHistory
-          history={contentHistory}
-          onLoadContent={handleLoadContent}
-          onDeleteContent={handleDeleteContent}
-        />
-
-        <InputSection onGenerate={handleGenerate} isGenerating={isGenerating} />
-
-        {generatedContent && (
+        {!showScheduleView ? (
           <>
-            {visualSuggestions.length > 0 && (
-              <VisualSuggestions suggestions={visualSuggestions} />
+            <ContentHistory
+              history={contentHistory}
+              onLoadContent={handleLoadContent}
+              onDeleteContent={handleDeleteContent}
+            />
+
+            <InputSection onGenerate={handleGenerate} isGenerating={isGenerating} />
+
+            {generatedContent && (
+              <>
+                {visualSuggestions.length > 0 && (
+                  <VisualSuggestions suggestions={visualSuggestions} />
+                )}
+
+                {postOutline && <PostOutline outline={postOutline} />}
+
+                <CaptionSelector content={generatedContent} onSelectTone={handleSelectTone} />
+                <HashtagDisplay hashtags={generatedContent.hashtags} />
+                <PlatformPreviews
+                  caption={getSelectedCaption()}
+                  hashtags={generatedContent.hashtags}
+                  imageUrl={imageUrl}
+                  resizedImages={resizedImages}
+                />
+
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800 mb-1">Ready to schedule?</h3>
+                      <p className="text-sm text-gray-600">Schedule this content for future posting</p>
+                    </div>
+                    <button
+                      onClick={() => setShowScheduleModal(true)}
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-cyan-700 transition-all flex items-center gap-2"
+                    >
+                      <CalendarDays className="w-5 h-5" />
+                      Schedule Post
+                    </button>
+                  </div>
+                </div>
+
+                <ExportSection content={generatedContent} selectedCaption={getSelectedCaption()} />
+              </>
             )}
 
-            {postOutline && <PostOutline outline={postOutline} />}
-
-            <CaptionSelector content={generatedContent} onSelectTone={handleSelectTone} />
-            <HashtagDisplay hashtags={generatedContent.hashtags} />
-            <PlatformPreviews
-              caption={getSelectedCaption()}
-              hashtags={generatedContent.hashtags}
-              imageUrl={imageUrl}
-              resizedImages={resizedImages}
-            />
-            <ExportSection content={generatedContent} selectedCaption={getSelectedCaption()} />
+            {!generatedContent && !isGenerating && (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-10 h-10 text-gray-400" />
+                </div>
+                <p className="text-gray-500 text-lg">
+                  {brandProfile
+                    ? 'Enter your campaign description to generate on-brand content with AI visual suggestions'
+                    : 'Setup your brand profile and start generating content'}
+                </p>
+              </div>
+            )}
           </>
-        )}
-
-        {!generatedContent && !isGenerating && (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-10 h-10 text-gray-400" />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              <div className="lg:col-span-2">
+                <Calendar
+                  scheduledPosts={scheduledPosts}
+                  onDateSelect={setSelectedDate}
+                  onPostClick={handleEditScheduledPost}
+                  selectedDate={selectedDate}
+                />
+              </div>
+              <div>
+                <ScheduledPostsList
+                  posts={scheduledPosts}
+                  selectedDate={selectedDate}
+                  onEdit={handleEditScheduledPost}
+                  onDelete={handleDeleteScheduledPost}
+                />
+              </div>
             </div>
-            <p className="text-gray-500 text-lg">
-              {brandProfile
-                ? 'Enter your campaign description to generate on-brand content with AI visual suggestions'
-                : 'Setup your brand profile and start generating content'}
-            </p>
-          </div>
+          </>
         )}
       </div>
 
@@ -298,6 +416,16 @@ function App() {
         onClose={() => setShowBrandModal(false)}
         onSave={saveBrandProfile}
         existingProfile={brandProfile}
+      />
+
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        onSchedule={handleSchedulePost}
+        prefilledData={{
+          title: currentDescription,
+          caption: getSelectedCaption()
+        }}
       />
     </div>
   );
