@@ -399,22 +399,23 @@ const normalizedPlanned = plannedPosts.map(post => ({
     const cta = generatedContent.ctaVariations?.[selectedTone];
     return cta ? `${baseCaption}\n\n${cta}` : baseCaption;
   };
+  
+  const calendarPosts = [...scheduledPosts, ...plannedPosts].map((post) => {
+    const dateStr =
+      ('scheduled_date' in post && post.scheduled_date) ||
+      ('suggested_date' in post && post.suggested_date) ||
+      null;
+    if (!dateStr) return null; // skip invalid posts
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const postDate = new Date(year, month - 1, day);
+    
+    return {
+      ...post,
+      displayDate: postDate,
+      label: post.title || 'Post',
+    };
+  }).filter(Boolean); // remove nulls
 
-  // Merge scheduled and planned posts for the calendar with proper date parsing
-const calendarPosts = [...scheduledPosts, ...plannedPosts].map((post) => {
-  // Determine which date field exists
-  const dateStr = 'scheduled_date' in post ? post.scheduled_date : post.suggested_date;
-
-  // Parse the date properly (year, month-0index, day)
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const postDate = new Date(year, month - 1, day);
-
-  return {
-    ...post,
-    displayDate: postDate,
-    label: post.title || 'Post',
-  };
-});
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
