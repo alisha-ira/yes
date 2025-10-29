@@ -84,12 +84,7 @@ function App() {
   };
 
   const loadScheduledPosts = async () => {
-    const { data } = await supabase
-      .from('scheduled_posts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('scheduled_date', { ascending: true })
-      .order('scheduled_time', { ascending: true });
+    const { data } = await supabase.rpc('get_scheduled_posts_sg', { p_user_id: userId });
 
     if (data) {
       setScheduledPosts(data as ScheduledPost[]);
@@ -103,11 +98,7 @@ function App() {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false }),
-      supabase
-        .from('planned_posts')
-        .select('*')
-        .eq('user_id', userId)
-        .order('suggested_date', { ascending: true })
+      supabase.rpc('get_planned_posts_sg', { p_user_id: userId })
     ]);
 
     if (plansData.data) {
