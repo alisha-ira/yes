@@ -331,6 +331,11 @@ function App() {
       }));
 
       await supabase.from('planned_posts').insert(plannedPostsData);
+      
+      // Immediately update state so calendar reflects new planned posts
+      setPlannedPosts((prev) => [...prev, ...planData.posts]);
+
+      
       await loadContentPlans();
       setShowScheduleView(true);
     }
@@ -366,6 +371,10 @@ function App() {
     }));
 
     await supabase.from('scheduled_posts').insert(scheduledPostsData);
+    
+    // Immediately update state so calendar reflects new posts
+    setScheduledPosts((prev) => [...prev, ...scheduledPostsData]);
+
     await loadScheduledPosts();
     setShowScheduleView(true);
   };
