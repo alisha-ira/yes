@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles, Clock } from 'lucide-react';
 import type { ScheduledPost, PlannedPost } from '../types';
-import { formatDateForDB } from '../utils/dateUtils';
 
 interface CalendarPost {
   id: string;
@@ -91,7 +90,7 @@ export function Calendar({ scheduledPosts, plannedPosts, onDateSelect, onPostCli
   };
 
   const getPostsForDate = (date: Date) => {
-    const dateStr = formatDateForDB(date);
+    const dateStr = date.toISOString().split('T')[0];
     return allPosts.filter(post => post.date === dateStr);
   };
 
