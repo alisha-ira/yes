@@ -343,19 +343,24 @@ function App() {
 
   const handleGenerateSmartSchedule = async (scheduleData: {
     frequency: string;
-    preferredDay: string;
+    preferredDay: string
     preferredTime: string;
     numberOfPosts: number;
     startDate: string;
-  }) => {
-    const dates = generateRecurringSchedule(
-      scheduleData.startDate,
-      scheduleData.frequency as 'weekly' | 'biweekly' | 'monthly',
-      scheduleData.preferredDay,
-      scheduleData.numberOfPosts
-    );
+}) => {
+  const dates = generateRecurringSchedule(
+    scheduleData.startDate,
+    scheduleData.frequency as 'weekly' | 'biweekly' | 'monthly',
+    scheduleData.preferredDay,
+    scheduleData.numberOfPosts
+  );
 
-    const scheduledPostsData = dates.map((date, index) => ({
+  const scheduledPostsData = dates.map((date, index) => {
+    // Convert date to Singapore timezone YYYY-MM-DD
+    const sgDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+    const formattedDate = sgDate.toISOString().split('T')[0];
+
+    return {
       user_id: userId,
       brand_profile_id: brandProfile?.id || null,
       title: `Scheduled Post #${index + 1}`,
@@ -363,21 +368,21 @@ function App() {
       hashtags: [],
       platforms: ['instagram'],
       image_url: '',
-      scheduled_date: date.toISOString().split('T')[0],
+      scheduled_date: formattedDate,
       scheduled_time: scheduleData.preferredTime,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: 'Asia/Singapore',
       status: 'draft' as const,
       notes: `Auto-generated ${scheduleData.frequency} schedule`
-    }));
+    };
+  });
 
-    await supabase.from('scheduled_posts').insert(scheduledPostsData);
-    
-    // Immediately update state so calendar reflects new posts
-    setScheduledPosts((prev) => [...prev, ...scheduledPostsData]);
+  await supabase.from('scheduled_posts').insert(scheduledPostsData);
 
-    await loadScheduledPosts();
-    setShowScheduleView(true);
-  };
+  // Update state to reflect new posts in calendar immediately
+  setScheduledPosts((prev) => [...prev, ...scheduledPostsData]);
+  setShowScheduleView(true);
+};
+
 
   const getSelectedCaption = () => {
     if (!generatedContent) return '';
