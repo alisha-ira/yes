@@ -464,7 +464,22 @@ function App() {
         </div>
 
         {showVideoTips && <VideoOptimizationTips />}
+        
+        // Convert dates to Singapore timezone for calendar display
+        const localScheduledPosts = scheduledPosts.map(post => ({
+  ...post,
+  scheduled_date: new Date(post.scheduled_date + 'T00:00:00').toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Singapore'
+  })
+}));
 
+const localPlannedPosts = plannedPosts.map(post => ({
+  ...post,
+  suggested_date: new Date(post.suggested_date + 'T00:00:00').toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Singapore'
+  })
+}));
+        
         {!showScheduleView ? (
           <>
             <ContentHistory
@@ -570,12 +585,13 @@ function App() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
                 <Calendar
-                  scheduledPosts={scheduledPosts}
-                  plannedPosts={plannedPosts}
+                  scheduledPosts={localScheduledPosts}
+                  plannedPosts={localPlannedPosts}
                   onDateSelect={setSelectedDate}
                   onPostClick={handleEditScheduledPost}
                   selectedDate={selectedDate}
                 />
+
               </div>
               <div>
                 <ScheduledPostsList
