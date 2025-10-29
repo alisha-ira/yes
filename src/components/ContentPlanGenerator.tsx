@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Calendar as CalendarIcon, TrendingUp, Lightbulb, CheckCircle, X } from 'lucide-react';
 import { getPostingFrequencyRecommendations, generateContentPlan, type PlannedPost as PlannedPostType } from '../services/contentPlanner';
 import type { BrandProfile } from '../types';
-import { formatDateForDB } from '../utils/dateUtils';
 
 interface ContentPlanGeneratorProps {
   isOpen: boolean;
@@ -50,8 +49,8 @@ export function ContentPlanGenerator({ isOpen, onClose, onGeneratePlan, brandPro
 
     onGeneratePlan({
       planName: generatedPlan.planName,
-      startDate: formatDateForDB(generatedPlan.startDate),
-      endDate: formatDateForDB(generatedPlan.endDate),
+      startDate: generatedPlan.startDate.toISOString().split('T')[0],
+      endDate: generatedPlan.endDate.toISOString().split('T')[0],
       frequency: generatedPlan.frequency,
       posts: generatedPlan.posts
     });

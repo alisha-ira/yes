@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { X, Clock, Calendar as CalendarIcon, Save, Instagram, Twitter, Linkedin, Facebook } from 'lucide-react';
-import { formatDateForDB } from '../utils/dateUtils';
 
 interface ScheduleModalProps {
   isOpen: boolean;
@@ -63,7 +62,7 @@ export function ScheduleModal({ isOpen, onClose, onSchedule, prefilledData }: Sc
 
   const getMinDate = () => {
     const today = new Date();
-    return formatDateForDB(today);
+    return today.toISOString().split('T')[0];
   };
 
   if (!isOpen) return null;

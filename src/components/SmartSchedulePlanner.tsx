@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Calendar as CalendarIcon, Clock, Sparkles, TrendingUp, X } from 'lucide-react';
-import { formatDateForDB } from '../utils/dateUtils';
 
 interface SmartSchedulePlannerProps {
   isOpen: boolean;
@@ -68,7 +67,7 @@ export function SmartSchedulePlanner({ isOpen, onClose, onGenerateSchedule }: Sm
   const [startDate, setStartDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return formatDateForDB(tomorrow);
+    return tomorrow.toISOString().split('T')[0];
   });
   const [useBestTime, setUseBestTime] = useState(false);
 
@@ -268,7 +267,7 @@ export function SmartSchedulePlanner({ isOpen, onClose, onGenerateSchedule }: Sm
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              min={formatDateForDB(new Date())}
+              min={new Date().toISOString().split('T')[0]}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
