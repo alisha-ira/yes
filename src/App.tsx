@@ -262,20 +262,6 @@ function App() {
         notes: scheduleData.notes
       });
 
-// 🧩 Normalize scheduled and planned posts for the Calendar
-const normalizedScheduled = scheduledPosts.map(post => ({
-  ...post,
-  displayDate: new Date(post.scheduled_date),
-  label: post.title || 'Scheduled Post',
-}));
-
-const normalizedPlanned = plannedPosts.map(post => ({
-  ...post,
-  // Convert suggested_date to displayDate so the calendar reads it
-  displayDate: new Date(post.suggested_date),
-  label: post.title || 'Planned Post',
-}));
-    
     loadScheduledPosts();
   };
 
@@ -399,22 +385,6 @@ const normalizedPlanned = plannedPosts.map(post => ({
     const cta = generatedContent.ctaVariations?.[selectedTone];
     return cta ? `${baseCaption}\n\n${cta}` : baseCaption;
   };
-  
-  const calendarPosts = [...scheduledPosts, ...plannedPosts].map((post) => {
-    const dateStr =
-      ('scheduled_date' in post && post.scheduled_date) ||
-      ('suggested_date' in post && post.suggested_date) ||
-      null;
-    if (!dateStr) return null; // skip invalid posts
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const postDate = new Date(year, month - 1, day);
-    
-    return {
-      ...post,
-      displayDate: postDate,
-      label: post.title || 'Post',
-    };
-  }).filter(Boolean); // remove nulls
 
 
   return (
@@ -595,15 +565,12 @@ const normalizedPlanned = plannedPosts.map(post => ({
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
                 <Calendar
-                  scheduledPosts={normalizedScheduled}
-                  plannedPosts={normalizedPlanned}
+                  scheduledPosts={scheduledPosts}
+                  plannedPosts={plannedPosts}
                   onDateSelect={setSelectedDate}
                   onPostClick={handleEditScheduledPost}
                   selectedDate={selectedDate}
-                  />
-
-
-
+                />
               </div>
               <div>
                 <ScheduledPostsList

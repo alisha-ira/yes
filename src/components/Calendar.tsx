@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles, Clock } from 'lucide-react';
 import type { ScheduledPost, PlannedPost } from '../types';
 
 interface CalendarPost {
@@ -9,6 +9,7 @@ interface CalendarPost {
   title: string;
   type: 'scheduled' | 'planned';
   status?: string;
+  originalPost: ScheduledPost | PlannedPost;
 }
 
 interface CalendarProps {
@@ -26,22 +27,28 @@ export function Calendar({ scheduledPosts, plannedPosts, onDateSelect, onPostCli
 
   useEffect(() => {
     const combinedPosts: CalendarPost[] = [
-      ...scheduledPosts.map(post => ({
-        id: post.id,
-        date: post.scheduled_date,
-        time: post.scheduled_time,
-        title: post.title,
-        type: 'scheduled' as const,
-        status: post.status
-      })),
-      ...plannedPosts.map(post => ({
-        id: post.id,
-        date: post.suggested_date,
-        time: post.suggested_time,
-        title: post.title,
-        type: 'planned' as const,
-        status: post.status
-      }))
+      ...scheduledPosts
+        .filter(post => post.scheduled_date)
+        .map(post => ({
+          id: post.id,
+          date: post.scheduled_date,
+          time: post.scheduled_time || '12:00',
+          title: post.title || 'Scheduled Post',
+          type: 'scheduled' as const,
+          status: post.status,
+          originalPost: post
+        })),
+      ...plannedPosts
+        .filter(post => post.suggested_date)
+        .map(post => ({
+          id: post.id,
+          date: post.suggested_date,
+          time: post.suggested_time || '12:00',
+          title: post.title || 'Planned Post',
+          type: 'planned' as const,
+          status: post.status,
+          originalPost: post
+        }))
     ];
     setAllPosts(combinedPosts);
   }, [scheduledPosts, plannedPosts]);
@@ -226,15 +233,22 @@ export function Calendar({ scheduledPosts, plannedPosts, onDateSelect, onPostCli
                         key={post.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          onPostClick(post);
+                          onPostClick(post.originalPost);
                         }}
-                        className={`w-full h-1.5 rounded-full hover:opacity-80 transition-opacity ${
+                        className={`w-full px-2 py-1 rounded text-xs font-medium hover:opacity-90 transition-all flex items-center gap-1 ${
                           post.type === 'planned'
-                            ? 'bg-gradient-to-r from-green-500 to-teal-600'
-                            : 'bg-gradient-to-r from-blue-500 to-purple-600'
+                            ? 'bg-gradient-to-r from-green-500 to-teal-600 text-white'
+                            : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
                         }`}
-                        title={`${post.title} (${post.type})`}
-                      />
+                        title={`${post.title} at ${post.time} (${post.type})`}
+                      >
+                        {post.type === 'planned' ? (
+                          <Sparkles className="w-3 h-3 flex-shrink-0" />
+                        ) : (
+                          <Clock className="w-3 h-3 flex-shrink-0" />
+                        )}
+                        <span className="truncate">{post.title}</span>
+                      </button>
                     ))}
                     {posts.length > 3 && (
                       <span className="text-xs text-gray-500 font-medium">
