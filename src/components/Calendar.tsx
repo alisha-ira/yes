@@ -25,13 +25,19 @@ export function Calendar({ scheduledPosts, plannedPosts, onDateSelect, onPostCli
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week'>('month');
 
+  const adjustDateForSingapore = (dateStr: string): string => {
+    const date = new Date(dateStr + 'T00:00:00Z');
+    date.setDate(date.getDate() - 1);
+    return date.toISOString().split('T')[0];
+  };
+
   useEffect(() => {
     const combinedPosts: CalendarPost[] = [
       ...scheduledPosts
         .filter(post => post.scheduled_date)
         .map(post => ({
           id: post.id,
-          date: post.scheduled_date,
+          date: adjustDateForSingapore(post.scheduled_date),
           time: post.scheduled_time || '12:00',
           title: post.title || 'Scheduled Post',
           type: 'scheduled' as const,
@@ -42,7 +48,7 @@ export function Calendar({ scheduledPosts, plannedPosts, onDateSelect, onPostCli
         .filter(post => post.suggested_date)
         .map(post => ({
           id: post.id,
-          date: post.suggested_date,
+          date: adjustDateForSingapore(post.suggested_date),
           time: post.suggested_time || '12:00',
           title: post.title || 'Planned Post',
           type: 'planned' as const,
