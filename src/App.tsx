@@ -22,6 +22,7 @@ import { generateRecurringSchedule } from './services/scheduleGenerator';
 import type { PlannedPost as PlannedPostServiceType } from './services/contentPlanner';
 import { supabase } from './lib/supabase';
 import type { GeneratedContent, ToneType, BrandProfile, ResizedImages, ContentHistory as ContentHistoryType, ScheduledPost, PlannedPost, ContentPlan } from './types';
+import { formatDateForDB } from './utils/dateUtils';
 
 function App() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -322,7 +323,7 @@ function App() {
         content_plan_id: planRecord.id,
         user_id: userId,
         title: post.title,
-        suggested_date: post.suggestedDate.toISOString().split('T')[0],
+        suggested_date: formatDateForDB(post.suggestedDate),
         suggested_time: post.suggestedTime,
         rationale: post.rationale,
         platforms: post.platforms,
@@ -331,11 +332,7 @@ function App() {
       }));
 
       await supabase.from('planned_posts').insert(plannedPostsData);
-      
-      // Immediately update state so calendar reflects new planned posts
-      setPlannedPosts((prev) => [...prev, ...planData.posts]);
 
-      
       await loadContentPlans();
       setShowScheduleView(true);
     }
@@ -363,7 +360,7 @@ function App() {
       hashtags: [],
       platforms: ['instagram'],
       image_url: '',
-      scheduled_date: date.toISOString().split('T')[0],
+      scheduled_date: formatDateForDB(date),
       scheduled_time: scheduleData.preferredTime,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       status: 'draft' as const,
@@ -371,9 +368,6 @@ function App() {
     }));
 
     await supabase.from('scheduled_posts').insert(scheduledPostsData);
-    
-    // Immediately update state so calendar reflects new posts
-    setScheduledPosts((prev) => [...prev, ...scheduledPostsData]);
 
     await loadScheduledPosts();
     setShowScheduleView(true);
