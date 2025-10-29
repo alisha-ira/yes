@@ -262,6 +262,20 @@ function App() {
         notes: scheduleData.notes
       });
 
+// 🧩 Normalize scheduled and planned posts for the Calendar
+const normalizedScheduled = scheduledPosts.map(post => ({
+  ...post,
+  displayDate: new Date(post.scheduled_date),
+  label: post.title || 'Scheduled Post',
+}));
+
+const normalizedPlanned = plannedPosts.map(post => ({
+  ...post,
+  // Convert suggested_date to displayDate so the calendar reads it
+  displayDate: new Date(post.suggested_date),
+  label: post.title || 'Planned Post',
+}));
+    
     loadScheduledPosts();
   };
 
@@ -580,12 +594,13 @@ const calendarPosts = [...scheduledPosts, ...plannedPosts].map((post) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
                 <Calendar
-                  scheduledPosts={calendarPosts}
-                  plannedPosts={[]} // <--- temporarily pass an empty array so Calendar doesn’t crash
+                  scheduledPosts={normalizedScheduled}
+                  plannedPosts={normalizedPlanned}
                   onDateSelect={setSelectedDate}
                   onPostClick={handleEditScheduledPost}
                   selectedDate={selectedDate}
                   />
+
 
 
               </div>
