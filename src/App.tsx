@@ -386,6 +386,22 @@ function App() {
     return cta ? `${baseCaption}\n\n${cta}` : baseCaption;
   };
 
+  // Merge scheduled and planned posts for the calendar with proper date parsing
+const calendarPosts = [...scheduledPosts, ...plannedPosts].map((post) => {
+  // Determine which date field exists
+  const dateStr = 'scheduled_date' in post ? post.scheduled_date : post.suggested_date;
+
+  // Parse the date properly (year, month-0index, day)
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const postDate = new Date(year, month - 1, day);
+
+  return {
+    ...post,
+    displayDate: postDate,
+    label: post.title || 'Post',
+  };
+});
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -564,12 +580,12 @@ function App() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
                 <Calendar
-                  scheduledPosts={scheduledPosts}
-                  plannedPosts={plannedPosts}
+                  scheduledPosts={calendarPosts} // <-- use merged and fixed posts
                   onDateSelect={setSelectedDate}
                   onPostClick={handleEditScheduledPost}
                   selectedDate={selectedDate}
-                />
+                  />
+
               </div>
               <div>
                 <ScheduledPostsList
