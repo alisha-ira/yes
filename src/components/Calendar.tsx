@@ -1,17 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import type { ScheduledPost } from '../types';
+import type { ScheduledPost, PlannedPost } from '../types';
+
+interface CalendarPost {
+  id: string;
+  date: string;
+  time: string;
+  title: string;
+  type: 'scheduled' | 'planned';
+  status?: string;
+}
 
 interface CalendarProps {
   scheduledPosts: ScheduledPost[];
+  plannedPosts: PlannedPost[];
   onDateSelect: (date: Date) => void;
-  onPostClick: (post: ScheduledPost) => void;
+  onPostClick: (post: any) => void;
   selectedDate: Date | null;
 }
 
-export function Calendar({ scheduledPosts, onDateSelect, onPostClick, selectedDate }: CalendarProps) {
+export function Calendar({ scheduledPosts, plannedPosts, onDateSelect, onPostClick, selectedDate }: CalendarProps) {
+  const [allPosts, setAllPosts] = useState<CalendarPost[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week'>('month');
+
+  useEffect(() => {
+    const combinedPosts: CalendarPost[] = [
+      ...scheduledPosts.map(post => ({
+        id: post.id,
+        date: post.scheduled_date,
+        time: post.scheduled_time,
+        title: post.title,
+        type: 'scheduled' as const,
+        status: post.status
+      })),
+      ...plannedPosts.map(post => ({
+        id: post.id,
+        date: post.suggested_date,
+        time: post.suggested_time,
+        title: post.title,
+        type: 'planned' as const,
+        status: post.status
+      }))
+    ];
+    setAllPosts(combinedPosts);
+  }, [scheduledPosts, plannedPosts]);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -51,7 +84,7 @@ export function Calendar({ scheduledPosts, onDateSelect, onPostClick, selectedDa
 
   const getPostsForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return scheduledPosts.filter(post => post.scheduled_date === dateStr);
+    return allPosts.filter(post => post.date === dateStr);
   };
 
   const previousPeriod = () => {
@@ -195,8 +228,12 @@ export function Calendar({ scheduledPosts, onDateSelect, onPostClick, selectedDa
                           e.stopPropagation();
                           onPostClick(post);
                         }}
-                        className="w-full h-1.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full hover:opacity-80 transition-opacity"
-                        title={post.title}
+                        className={`w-full h-1.5 rounded-full hover:opacity-80 transition-opacity ${
+                          post.type === 'planned'
+                            ? 'bg-gradient-to-r from-green-500 to-teal-600'
+                            : 'bg-gradient-to-r from-blue-500 to-purple-600'
+                        }`}
+                        title={`${post.title} (${post.type})`}
                       />
                     ))}
                     {posts.length > 3 && (

@@ -274,8 +274,25 @@ function App() {
     loadScheduledPosts();
   };
 
-  const handleEditScheduledPost = (post: ScheduledPost) => {
-    setEditingPost(post);
+  const handleDeletePlannedPost = async (id: string) => {
+    await supabase
+      .from('planned_posts')
+      .delete()
+      .eq('id', id);
+
+    loadContentPlans();
+  };
+
+  const handleDeletePost = async (id: string, type: 'scheduled' | 'planned') => {
+    if (type === 'scheduled') {
+      await handleDeleteScheduledPost(id);
+    } else {
+      await handleDeletePlannedPost(id);
+    }
+  };
+
+  const handleEditScheduledPost = (post: ScheduledPost | PlannedPost) => {
+    setEditingPost(post as ScheduledPost);
   };
 
   const handleGenerateContentPlan = async (planData: {
@@ -539,6 +556,7 @@ function App() {
               <div className="lg:col-span-2">
                 <Calendar
                   scheduledPosts={scheduledPosts}
+                  plannedPosts={plannedPosts}
                   onDateSelect={setSelectedDate}
                   onPostClick={handleEditScheduledPost}
                   selectedDate={selectedDate}
@@ -546,10 +564,11 @@ function App() {
               </div>
               <div>
                 <ScheduledPostsList
-                  posts={scheduledPosts}
+                  scheduledPosts={scheduledPosts}
+                  plannedPosts={plannedPosts}
                   selectedDate={selectedDate}
                   onEdit={handleEditScheduledPost}
-                  onDelete={handleDeleteScheduledPost}
+                  onDelete={handleDeletePost}
                 />
               </div>
             </div>

@@ -1,14 +1,15 @@
-import { Clock, Instagram, Twitter, Linkedin, Facebook, Edit, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
-import type { ScheduledPost } from '../types';
+import { Clock, Instagram, Twitter, Linkedin, Facebook, Edit, Trash2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import type { ScheduledPost, PlannedPost } from '../types';
 
 interface ScheduledPostsListProps {
-  posts: ScheduledPost[];
+  scheduledPosts: ScheduledPost[];
+  plannedPosts: PlannedPost[];
   selectedDate: Date | null;
-  onEdit: (post: ScheduledPost) => void;
-  onDelete: (id: string) => void;
+  onEdit: (post: ScheduledPost | PlannedPost) => void;
+  onDelete: (id: string, type: 'scheduled' | 'planned') => void;
 }
 
-export function ScheduledPostsList({ posts, selectedDate, onEdit, onDelete }: ScheduledPostsListProps) {
+export function ScheduledPostsList({ scheduledPosts, plannedPosts, selectedDate, onEdit, onDelete }: ScheduledPostsListProps) {
   const platformIcons = {
     instagram: Instagram,
     twitter: Twitter,
@@ -27,19 +28,39 @@ export function ScheduledPostsList({ posts, selectedDate, onEdit, onDelete }: Sc
     draft: { label: 'Draft', color: 'bg-gray-100 text-gray-700', icon: Edit },
     scheduled: { label: 'Scheduled', color: 'bg-blue-100 text-blue-700', icon: Clock },
     published: { label: 'Published', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-    failed: { label: 'Failed', color: 'bg-red-100 text-red-700', icon: AlertCircle }
+    failed: { label: 'Failed', color: 'bg-red-100 text-red-700', icon: AlertCircle },
+    suggested: { label: 'AI Suggested', color: 'bg-green-100 text-green-700', icon: Sparkles },
+    approved: { label: 'Approved', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
+    generated: { label: 'Generated', color: 'bg-purple-100 text-purple-700', icon: Sparkles }
   };
 
+  const allPosts = [
+    ...scheduledPosts.map(post => ({
+      ...post,
+      type: 'scheduled' as const,
+      date: post.scheduled_date,
+      time: post.scheduled_time
+    })),
+    ...plannedPosts.map(post => ({
+      ...post,
+      type: 'planned' as const,
+      date: post.suggested_date,
+      time: post.suggested_time,
+      platforms: post.platforms || [],
+      caption: post.caption || 'AI-generated content plan'
+    }))
+  ];
+
   const filteredPosts = selectedDate
-    ? posts.filter(post => {
-        const postDate = new Date(post.scheduled_date);
+    ? allPosts.filter(post => {
+        const postDate = new Date(post.date);
         return postDate.toDateString() === selectedDate.toDateString();
       })
-    : posts;
+    : allPosts;
 
   const sortedPosts = [...filteredPosts].sort((a, b) => {
-    const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
-    const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
+    const dateA = new Date(`${a.date}T${a.time}`);
+    const dateB = new Date(`${b.date}T${b.time}`);
     return dateA.getTime() - dateB.getTime();
   });
 
@@ -108,13 +129,19 @@ export function ScheduledPostsList({ posts, selectedDate, onEdit, onDelete }: Sc
                   <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
                     <div className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
-                      <span>{formatDate(post.scheduled_date)} at {formatTime(post.scheduled_time)}</span>
+                      <span>{formatDate(post.date)} at {formatTime(post.time)}</span>
                     </div>
+                    {post.type === 'planned' && (
+                      <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        AI Plan
+                      </span>
+                    )}
                     <div className="flex items-center gap-2">
                       {post.platforms.map(platform => {
                         const Icon = platformIcons[platform as keyof typeof platformIcons];
                         const color = platformColors[platform as keyof typeof platformColors];
-                        return (
+                        return Icon ? (
                           <div
                             key={platform}
                             className={`w-6 h-6 bg-gradient-to-br ${color} rounded flex items-center justify-center`}
@@ -122,13 +149,16 @@ export function ScheduledPostsList({ posts, selectedDate, onEdit, onDelete }: Sc
                           >
                             <Icon className="w-3 h-3 text-white" />
                           </div>
-                        );
+                        ) : null;
                       })}
                     </div>
                   </div>
 
-                  {post.notes && (
+                  {'notes' in post && post.notes && (
                     <p className="text-xs text-gray-500 mt-2 italic">Note: {post.notes}</p>
+                  )}
+                  {'rationale' in post && post.rationale && (
+                    <p className="text-xs text-gray-500 mt-2 italic">AI Rationale: {post.rationale}</p>
                   )}
                 </div>
 
@@ -141,7 +171,7 @@ export function ScheduledPostsList({ posts, selectedDate, onEdit, onDelete }: Sc
                     <Edit className="w-4 h-4 text-blue-600" />
                   </button>
                   <button
-                    onClick={() => onDelete(post.id)}
+                    onClick={() => onDelete(post.id, post.type)}
                     className="p-2 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                     title="Delete post"
                   >
