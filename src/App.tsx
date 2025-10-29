@@ -14,9 +14,11 @@ import { Calendar } from './components/Calendar';
 import { ScheduleModal } from './components/ScheduleModal';
 import { ScheduledPostsList } from './components/ScheduledPostsList';
 import { ContentPlanGenerator } from './components/ContentPlanGenerator';
+import { SmartSchedulePlanner } from './components/SmartSchedulePlanner';
 import { generateContent } from './services/contentGenerator';
 import { resizeImageForPlatforms } from './services/imageResizer';
 import { generateVisualSuggestions, generatePostOutline } from './services/visualGenerator';
+import { generateRecurringSchedule } from './services/scheduleGenerator';
 import type { PlannedPost as PlannedPostServiceType } from './services/contentPlanner';
 import { supabase } from './lib/supabase';
 import type { GeneratedContent, ToneType, BrandProfile, ResizedImages, ContentHistory as ContentHistoryType, ScheduledPost, PlannedPost, ContentPlan } from './types';
@@ -42,6 +44,7 @@ function App() {
   const [showScheduleView, setShowScheduleView] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showPlanGenerator, setShowPlanGenerator] = useState(false);
+  const [showSmartPlanner, setShowSmartPlanner] = useState(false);
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
   const [plannedPosts, setPlannedPosts] = useState<PlannedPost[]>([]);
   const [contentPlans, setContentPlans] = useState<ContentPlan[]>([]);
@@ -316,6 +319,40 @@ function App() {
     }
   };
 
+  const handleGenerateSmartSchedule = async (scheduleData: {
+    frequency: string;
+    preferredDay: string;
+    preferredTime: string;
+    numberOfPosts: number;
+    startDate: string;
+  }) => {
+    const dates = generateRecurringSchedule(
+      scheduleData.startDate,
+      scheduleData.frequency as 'weekly' | 'biweekly' | 'monthly',
+      scheduleData.preferredDay,
+      scheduleData.numberOfPosts
+    );
+
+    const scheduledPostsData = dates.map((date, index) => ({
+      user_id: userId,
+      brand_profile_id: brandProfile?.id || null,
+      title: `Scheduled Post #${index + 1}`,
+      caption: 'Content to be generated',
+      hashtags: [],
+      platforms: ['instagram'],
+      image_url: '',
+      scheduled_date: date.toISOString().split('T')[0],
+      scheduled_time: scheduleData.preferredTime,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      status: 'draft' as const,
+      notes: `Auto-generated ${scheduleData.frequency} schedule`
+    }));
+
+    await supabase.from('scheduled_posts').insert(scheduledPostsData);
+    await loadScheduledPosts();
+    setShowScheduleView(true);
+  };
+
   const getSelectedCaption = () => {
     if (!generatedContent) return '';
     const baseCaption = generatedContent[selectedTone];
@@ -458,20 +495,39 @@ function App() {
           </>
         ) : (
           <>
-            <div className="mb-6">
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-2xl shadow-lg p-6">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex flex-col h-full">
+                  <div className="mb-4">
+                    <h3 className="text-xl font-bold text-gray-800 mb-1">
+                      Smart Schedule Planner
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Create recurring posting schedules automatically
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowSmartPlanner(true)}
+                    className="mt-auto px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all"
+                  >
+                    Generate Schedule
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex flex-col h-full">
+                  <div className="mb-4">
                     <h3 className="text-xl font-bold text-gray-800 mb-1">
                       AI Content Planning
                     </h3>
                     <p className="text-sm text-gray-600">
-                      Let AI generate an optimized posting schedule based on your goals
+                      Let AI optimize posting schedule based on your brand
                     </p>
                   </div>
                   <button
                     onClick={() => setShowPlanGenerator(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl font-semibold hover:from-green-600 hover:to-teal-700 transition-all"
+                    className="mt-auto px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl font-semibold hover:from-green-600 hover:to-teal-700 transition-all"
                   >
                     Create Content Plan
                   </button>
@@ -523,6 +579,12 @@ function App() {
         onClose={() => setShowPlanGenerator(false)}
         onGeneratePlan={handleGenerateContentPlan}
         brandProfile={brandProfile}
+      />
+
+      <SmartSchedulePlanner
+        isOpen={showSmartPlanner}
+        onClose={() => setShowSmartPlanner(false)}
+        onGenerateSchedule={handleGenerateSmartSchedule}
       />
     </div>
   );
