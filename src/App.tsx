@@ -579,12 +579,14 @@ const calendarPosts = [...scheduledPosts, ...plannedPosts].map((post) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
-               <Calendar
-                  scheduledPosts={calendarPosts} // <-- use merged and fixed posts
+                <Calendar
+                  scheduledPosts={calendarPosts}
+                  plannedPosts={[]} // <--- temporarily pass an empty array so Calendar doesn’t crash
                   onDateSelect={setSelectedDate}
                   onPostClick={handleEditScheduledPost}
                   selectedDate={selectedDate}
                   />
+
 
               </div>
               <div>
