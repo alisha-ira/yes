@@ -338,6 +338,8 @@ function App() {
     preferredTime: string;
     numberOfPosts: number;
     startDate: string;
+    generateContent: boolean;
+    platforms: string[];
   }) => {
     const dates = generateRecurringSchedule(
       scheduleData.startDate,
@@ -346,27 +348,51 @@ function App() {
       scheduleData.numberOfPosts
     );
 
-    const scheduledPostsData = dates.map((date, index) => ({
-      user_id: userId,
-      brand_profile_id: brandProfile?.id || null,
-      title: `Scheduled Post #${index + 1}`,
-      caption: 'Content to be generated',
-      hashtags: [],
-      platforms: ['instagram'],
-      image_url: '',
-      scheduled_date: date.toISOString().split('T')[0],
-      scheduled_time: scheduleData.preferredTime,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      status: 'draft' as const,
-      notes: `Auto-generated ${scheduleData.frequency} schedule`
-    }));
+    if (scheduleData.generateContent) {
+      const contentThemes = [
+        'Product Showcase', 'Behind the Scenes', 'Customer Story',
+        'Industry Insight', 'Tip & Trick', 'Educational Content',
+        'Trending Topic', 'Company Update', 'User Testimonial', 'Inspiration'
+      ];
 
-    await supabase.from('scheduled_posts').insert(scheduledPostsData);
-    
-    // Immediately update state so calendar reflects new posts
-    setScheduledPosts((prev) => [...prev, ...scheduledPostsData]);
+      const plannedPostsData = dates.map((date, index) => ({
+        content_plan_id: null,
+        user_id: userId,
+        title: `${contentThemes[index % contentThemes.length]} Post`,
+        suggested_date: date.toISOString().split('T')[0],
+        suggested_time: scheduleData.preferredTime,
+        rationale: `AI-suggested ${scheduleData.frequency} schedule on ${scheduleData.preferredDay}`,
+        content_generated: false,
+        caption: '',
+        hashtags: [],
+        platforms: scheduleData.platforms,
+        image_url: '',
+        status: 'suggested' as const,
+        order_in_plan: index
+      }));
 
-    await loadScheduledPosts();
+      await supabase.from('planned_posts').insert(plannedPostsData);
+      await loadContentPlans();
+    } else {
+      const scheduledPostsData = dates.map((date, index) => ({
+        user_id: userId,
+        brand_profile_id: brandProfile?.id || null,
+        title: `Scheduled Post #${index + 1}`,
+        caption: 'Content to be generated',
+        hashtags: [],
+        platforms: scheduleData.platforms,
+        image_url: '',
+        scheduled_date: date.toISOString().split('T')[0],
+        scheduled_time: scheduleData.preferredTime,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        status: 'draft' as const,
+        notes: `Auto-generated ${scheduleData.frequency} schedule`
+      }));
+
+      await supabase.from('scheduled_posts').insert(scheduledPostsData);
+      await loadScheduledPosts();
+    }
+
     setShowScheduleView(true);
   };
 
