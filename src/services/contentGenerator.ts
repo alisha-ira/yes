@@ -11,17 +11,128 @@ export async function generateContent(
 
   await new Promise(resolve => setTimeout(resolve, 1500));
 
+  const parsedInfo = parsePrompt(description);
   const tone = detectToneAndEmotion(description);
   const keywords = extractKeywords(description);
-  const hashtags = generateHashtags(keywords, description, brandProfile);
+  const hashtags = generateHashtags(keywords, description, brandProfile, parsedInfo);
 
   return {
-    formal: generateFormalCaption(description, brandProfile, tone),
-    casual: generateCasualCaption(description, brandProfile, tone),
-    funny: generateFunnyCaption(description, brandProfile, tone),
+    formal: generateFormalCaption(description, brandProfile, tone, parsedInfo),
+    casual: generateCasualCaption(description, brandProfile, tone, parsedInfo),
+    funny: generateFunnyCaption(description, brandProfile, tone, parsedInfo),
     hashtags,
-    ctaVariations: generateCTAVariations(description, brandProfile)
+    ctaVariations: generateCTAVariations(description, brandProfile, parsedInfo)
   };
+}
+
+interface ParsedPromptInfo {
+  brandName?: string;
+  productName?: string;
+  eventName?: string;
+  location?: string;
+  date?: string;
+  price?: string;
+  percentage?: string;
+  features?: string[];
+  benefits?: string[];
+}
+
+function parsePrompt(description: string): ParsedPromptInfo {
+  const info: ParsedPromptInfo = {
+    features: [],
+    benefits: []
+  };
+
+  const brandPatterns = [
+    /brand\s+(?:name\s+)?(?:is\s+)?:?\s*([A-Z][a-zA-Z0-9\s&'-]+?)(?:\s+(?:is|has|offers|provides|announces|launches|presents)|[,.]|$)/i,
+    /(?:for|by|from|at)\s+([A-Z][a-zA-Z0-9\s&'-]{2,}?)(?:\s+(?:is|has|offers|provides|announces|launches|presents)|[,.]|$)/,
+    /^([A-Z][a-zA-Z0-9\s&'-]{2,}?)\s+(?:is|has|offers|provides|announces|launches|presents)/,
+  ];
+
+  for (const pattern of brandPatterns) {
+    const match = description.match(pattern);
+    if (match && match[1]) {
+      info.brandName = match[1].trim();
+      break;
+    }
+  }
+
+  const productPatterns = [
+    /product\s+(?:name\s+)?(?:is\s+)?:?\s*([A-Z][a-zA-Z0-9\s-]+?)(?:\s+(?:is|has|offers|provides)|[,.]|$)/i,
+    /(?:new|latest|introducing)\s+([A-Z][a-zA-Z0-9\s-]{2,}?)(?:\s+(?:is|has|offers|provides)|[,.]|$)/i,
+    /(?:called|named)\s+([A-Z][a-zA-Z0-9\s-]+?)(?:\s+(?:is|has|offers|provides)|[,.]|$)/i,
+  ];
+
+  for (const pattern of productPatterns) {
+    const match = description.match(pattern);
+    if (match && match[1]) {
+      info.productName = match[1].trim();
+      break;
+    }
+  }
+
+  const eventPatterns = [
+    /event\s+(?:name\s+)?(?:is\s+)?:?\s*([A-Z][a-zA-Z0-9\s-]+?)(?:\s+(?:on|at|is)|[,.]|$)/i,
+    /(?:hosting|organizing|presenting)\s+([A-Z][a-zA-Z0-9\s-]{3,}?)(?:\s+(?:on|at|is)|[,.]|$)/i,
+  ];
+
+  for (const pattern of eventPatterns) {
+    const match = description.match(pattern);
+    if (match && match[1]) {
+      info.eventName = match[1].trim();
+      break;
+    }
+  }
+
+  const locationMatch = description.match(/(?:location|at|in)\s+(?:is\s+)?:?\s*([A-Z][a-zA-Z\s,]+?)(?:\s+on|[,.]|$)/i);
+  if (locationMatch) {
+    info.location = locationMatch[1].trim();
+  }
+
+  const dateMatch = description.match(/(?:on|date)\s+(?:is\s+)?:?\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  if (dateMatch) {
+    info.date = dateMatch[1].trim();
+  }
+
+  const priceMatch = description.match(/(?:price|costs?|priced at)\s+(?:is\s+)?:?\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/i);
+  if (priceMatch) {
+    info.price = priceMatch[1];
+  }
+
+  const percentMatch = description.match(/(\d+)%\s*(?:off|discount|savings?)/i);
+  if (percentMatch) {
+    info.percentage = percentMatch[1];
+  }
+
+  const featurePatterns = [
+    /features?\s+(?:include|are|is)?:?\s*([^.]+)/i,
+    /(?:includes?|comes with|equipped with)\s+([^.]+)/i,
+  ];
+
+  for (const pattern of featurePatterns) {
+    const match = description.match(pattern);
+    if (match && match[1]) {
+      const features = match[1].split(/,|and/).map(f => f.trim()).filter(f => f.length > 0);
+      info.features = features.slice(0, 3);
+      break;
+    }
+  }
+
+  const benefitPatterns = [
+    /benefits?\s+(?:include|are)?:?\s*([^.]+)/i,
+    /(?:helps?|allows?|enables?)\s+(?:you\s+)?(?:to\s+)?([^.]+)/i,
+  ];
+
+  for (const pattern of benefitPatterns) {
+    const match = description.match(pattern);
+    if (match && match[1]) {
+      const benefits = match[1].split(/,|and/).map(b => b.trim()).filter(b => b.length > 0);
+      info.benefits = benefits.slice(0, 3);
+      break;
+    }
+  }
+
+  return info;
 }
 
 function validateInput(description: string): string | null {
@@ -125,9 +236,30 @@ function extractKeywords(text: string): string[] {
   return [...new Set(words)].slice(0, 8);
 }
 
-function generateHashtags(keywords: string[], description: string, brandProfile?: BrandProfile | null): string[] {
+function generateHashtags(keywords: string[], description: string, brandProfile?: BrandProfile | null, parsedInfo?: ParsedPromptInfo): string[] {
   const genericTags = new Set(['#fun', '#nice', '#amazing', '#good', '#great', '#cool', '#awesome', '#best']);
   const hashtags: string[] = [];
+
+  if (parsedInfo?.brandName) {
+    const brandTag = parsedInfo.brandName.replace(/\s+/g, '');
+    if (brandTag.length > 2) {
+      hashtags.push(`#${brandTag}`);
+    }
+  }
+
+  if (parsedInfo?.productName) {
+    const productTag = parsedInfo.productName.replace(/\s+/g, '');
+    if (productTag.length > 2) {
+      hashtags.push(`#${productTag}`);
+    }
+  }
+
+  if (parsedInfo?.eventName) {
+    const eventTag = parsedInfo.eventName.replace(/\s+/g, '');
+    if (eventTag.length > 2) {
+      hashtags.push(`#${eventTag}`);
+    }
+  }
 
   keywords.forEach(word => {
     if (word.length > 3) {
@@ -181,36 +313,74 @@ function generateHashtags(keywords: string[], description: string, brandProfile?
   return uniqueHashtags.slice(0, 10);
 }
 
-function generateFormalCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }): string {
-  const brandName = brandProfile?.name || 'We';
+function generateFormalCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }, parsedInfo?: ParsedPromptInfo): string {
+  const brandName = parsedInfo?.brandName || brandProfile?.name || 'We';
   const values = brandProfile?.key_values?.[0] || 'excellence and innovation';
 
-  const cleanDesc = description.trim();
+  let cleanDesc = description.trim();
   const descCapitalized = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
 
+  let mainContent = descCapitalized;
+
+  if (parsedInfo?.productName) {
+    mainContent = `${parsedInfo.productName} - ${descCapitalized}`;
+  } else if (parsedInfo?.eventName) {
+    mainContent = `${parsedInfo.eventName} - ${descCapitalized}`;
+  }
+
+  if (parsedInfo?.location && parsedInfo?.date) {
+    mainContent += ` Join us in ${parsedInfo.location} on ${parsedInfo.date}.`;
+  } else if (parsedInfo?.location) {
+    mainContent += ` Available in ${parsedInfo.location}.`;
+  } else if (parsedInfo?.date) {
+    mainContent += ` Mark your calendar for ${parsedInfo.date}.`;
+  }
+
+  if (parsedInfo?.price) {
+    mainContent += ` Priced at $${parsedInfo.price}.`;
+  } else if (parsedInfo?.percentage) {
+    mainContent += ` Save ${parsedInfo.percentage}% on this exclusive offer.`;
+  }
+
   if (toneInfo?.tone === 'urgent') {
-    return `${brandName} presents an important update: ${descCapitalized}. This timely initiative reflects our dedication to ${values}. We invite you to explore this opportunity.`;
+    return `${brandName} presents an important update: ${mainContent} This timely initiative reflects our dedication to ${values}. We invite you to explore this opportunity.`;
   } else if (toneInfo?.tone === 'celebratory') {
-    return `${brandName} is delighted to share: ${descCapitalized}. This milestone represents our ongoing commitment to ${values}. Thank you for being part of our journey.`;
+    return `${brandName} is delighted to share: ${mainContent} This milestone represents our ongoing commitment to ${values}. Thank you for being part of our journey.`;
   } else if (toneInfo?.tone === 'inspirational') {
-    return `${descCapitalized}. At ${brandName}, we believe in the power of ${values} to create meaningful change. Join us in making a difference.`;
+    return `${mainContent} At ${brandName}, we believe in the power of ${values} to create meaningful change. Join us in making a difference.`;
   }
 
   const templates = [
-    `${brandName} is pleased to announce: ${descCapitalized}. This initiative embodies our commitment to ${values} and reflects our vision for the future.`,
-    `We are proud to introduce: ${descCapitalized}. This development represents ${brandName}'s dedication to delivering exceptional value and maintaining the highest standards.`,
-    `${descCapitalized}. ${brandName} continues to prioritize ${values}, ensuring that we meet the evolving needs of our valued community.`
+    `${brandName} is pleased to announce: ${mainContent} This initiative embodies our commitment to ${values} and reflects our vision for the future.`,
+    `We are proud to introduce: ${mainContent} This development represents ${brandName}'s dedication to delivering exceptional value and maintaining the highest standards.`,
+    `${mainContent} ${brandName} continues to prioritize ${values}, ensuring that we meet the evolving needs of our valued community.`
   ];
 
   return templates[Math.floor(Math.random() * templates.length)];
 }
 
-function generateCasualCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }): string {
-  const emojis = ['✨', '🎉', '🚀', '💫', '🔥', '⚡', '🌟'];
+function generateCasualCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }, parsedInfo?: ParsedPromptInfo): string {
+  const emojis = ['✨', '🎉', '🚀', '💫', '🔥', '⚡', '��'];
   const emoji = emojis[Math.floor(Math.random() * emojis.length)];
 
-  const cleanDesc = description.trim();
-  const descFormatted = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
+  let cleanDesc = description.trim();
+  let descFormatted = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
+
+  if (parsedInfo?.productName) {
+    descFormatted = `Check out ${parsedInfo.productName}! ${descFormatted}`;
+  } else if (parsedInfo?.eventName) {
+    descFormatted = `${parsedInfo.eventName} is happening! ${descFormatted}`;
+  }
+
+  if (parsedInfo?.percentage) {
+    descFormatted += ` ${parsedInfo.percentage}% off right now! 🔥`;
+  } else if (parsedInfo?.price) {
+    descFormatted += ` Only $${parsedInfo.price}! 💰`;
+  }
+
+  if (parsedInfo?.date && parsedInfo?.location) {
+    descFormatted += ` See you in ${parsedInfo.location} on ${parsedInfo.date}! 📍`;
+  }
 
   if (toneInfo?.tone === 'enthusiastic') {
     return `${emoji} This is SO exciting! ${descFormatted} We've been working hard on this and can't wait for you to experience it! What are your thoughts? 💭`;
@@ -229,11 +399,21 @@ function generateCasualCaption(description: string, brandProfile?: BrandProfile 
   return templates[Math.floor(Math.random() * templates.length)];
 }
 
-function generateFunnyCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }): string {
-  const brandName = brandProfile?.name || 'We';
+function generateFunnyCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }, parsedInfo?: ParsedPromptInfo): string {
+  const brandName = parsedInfo?.brandName || brandProfile?.name || 'We';
 
-  const cleanDesc = description.trim();
-  const descFormatted = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
+  let cleanDesc = description.trim();
+  let descFormatted = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
+
+  if (parsedInfo?.productName) {
+    descFormatted = `Introducing ${parsedInfo.productName} - ${descFormatted}`;
+  } else if (parsedInfo?.eventName) {
+    descFormatted = `${parsedInfo.eventName} alert! ${descFormatted}`;
+  }
+
+  if (parsedInfo?.percentage) {
+    descFormatted += ` ${parsedInfo.percentage}% off because we like you that much! 😎`;
+  }
 
   if (toneInfo?.tone === 'urgent') {
     return `🚨 Alert! Alert! ${descFormatted} (No, this isn't a drill, and yes, we're more excited than a kid in a candy store 🍭) Don't sleep on this one!`;
@@ -250,9 +430,9 @@ function generateFunnyCaption(description: string, brandProfile?: BrandProfile |
   return templates[Math.floor(Math.random() * templates.length)];
 }
 
-function generateCTAVariations(description: string, brandProfile?: BrandProfile | null) {
+function generateCTAVariations(description: string, brandProfile?: BrandProfile | null, parsedInfo?: ParsedPromptInfo) {
   const lowerDesc = description.toLowerCase();
-  const brandName = brandProfile?.name || 'us';
+  const brandName = parsedInfo?.brandName || brandProfile?.name || 'us';
 
   const formalCTAs = [
     'Visit our website to learn more about this initiative.',
