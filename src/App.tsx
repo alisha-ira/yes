@@ -91,9 +91,15 @@ function App() {
   };
 
   const loadScheduledPosts = async () => {
-    const { data } = await supabase.rpc('get_scheduled_posts_sg', { p_user_id: userId });
+    const { data, error } = await supabase.rpc('get_scheduled_posts_sg', { p_user_id: userId });
+
+    if (error) {
+      console.error('Error loading scheduled posts:', error);
+      return;
+    }
 
     if (data) {
+      console.log('Loaded scheduled posts:', data);
       setScheduledPosts(data as ScheduledPost[]);
     }
   };
@@ -220,9 +226,6 @@ function App() {
 
   const handleSelectTone = (tone: ToneType) => {
     setSelectedTone(tone);
-    if (generatedContent) {
-      setCurrentStep(3);
-    }
   };
 
   const handleStepClick = (step: 1 | 2 | 3) => {
@@ -272,28 +275,36 @@ function App() {
   }) => {
     if (!generatedContent) return;
 
+    const postData = {
+      user_id: userId,
+      brand_profile_id: brandProfile?.id || null,
+      title: scheduleData.title,
+      caption: getSelectedCaption(),
+      hashtags: generatedContent.hashtags,
+      platforms: scheduleData.platforms,
+      image_url: imageUrl || '',
+      scheduled_date: scheduleData.scheduledDate,
+      scheduled_time: scheduleData.scheduledTime,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      status: 'scheduled',
+      notes: scheduleData.notes
+    };
+
+    console.log('Scheduling post:', postData);
+
     const { error } = await supabase
       .from('scheduled_posts')
-      .insert({
-        user_id: userId,
-        brand_profile_id: brandProfile?.id || null,
-        title: scheduleData.title,
-        caption: getSelectedCaption(),
-        hashtags: generatedContent.hashtags,
-        platforms: scheduleData.platforms,
-        image_url: imageUrl || '',
-        scheduled_date: scheduleData.scheduledDate,
-        scheduled_time: scheduleData.scheduledTime,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        status: 'scheduled',
-        notes: scheduleData.notes
-      });
+      .insert(postData);
 
-    if (!error) {
-      await loadScheduledPosts();
-      setShowScheduleModal(false);
-      setShowScheduleView(true);
+    if (error) {
+      console.error('Error scheduling post:', error);
+      return;
     }
+
+    console.log('Post scheduled successfully');
+    await loadScheduledPosts();
+    setShowScheduleModal(false);
+    setShowScheduleView(true);
   };
 
   const handleDeleteScheduledPost = async (id: string) => {
