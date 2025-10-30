@@ -12,6 +12,7 @@ import { PostOutline } from './components/PostOutline';
 import { VideoOptimizationTips } from './components/VideoOptimizationTips';
 import { Calendar } from './components/Calendar';
 import { ScheduleModal } from './components/ScheduleModal';
+import { EditPostModal } from './components/EditPostModal';
 import { ScheduledPostsList } from './components/ScheduledPostsList';
 import { ContentPlanGenerator } from './components/ContentPlanGenerator';
 import { SmartSchedulePlanner } from './components/SmartSchedulePlanner';
@@ -49,7 +50,9 @@ function App() {
   const [plannedPosts, setPlannedPosts] = useState<PlannedPost[]>([]);
   const [contentPlans, setContentPlans] = useState<ContentPlan[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
+  const [editingPost, setEditingPost] = useState<ScheduledPost | PlannedPost | null>(null);
+  const [editingPostType, setEditingPostType] = useState<'scheduled' | 'planned'>('scheduled');
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     loadBrandProfile();
@@ -283,7 +286,50 @@ function App() {
   };
 
   const handleEditScheduledPost = (post: ScheduledPost | PlannedPost) => {
-    setEditingPost(post as ScheduledPost);
+    setEditingPost(post);
+    if ('scheduled_date' in post) {
+      setEditingPostType('scheduled');
+    } else {
+      setEditingPostType('planned');
+    }
+    setShowEditModal(true);
+  };
+
+  const handleUpdatePost = async (data: any, type: 'scheduled' | 'planned') => {
+    if (type === 'scheduled') {
+      await supabase
+        .from('scheduled_posts')
+        .update({
+          title: data.title,
+          caption: data.caption,
+          platforms: data.platforms,
+          hashtags: data.hashtags,
+          scheduled_date: data.scheduled_date,
+          scheduled_time: data.scheduled_time,
+          notes: data.notes,
+          status: data.status
+        })
+        .eq('id', data.id);
+
+      await loadScheduledPosts();
+    } else {
+      await supabase
+        .from('planned_posts')
+        .update({
+          title: data.title,
+          caption: data.caption,
+          platforms: data.platforms,
+          hashtags: data.hashtags,
+          suggested_date: data.suggested_date,
+          suggested_time: data.suggested_time,
+          status: data.status,
+          content_generated: data.caption ? true : false
+        })
+        .eq('id', data.id);
+
+      await loadContentPlans();
+    }
+    setShowEditModal(false);
   };
 
   const handleGenerateContentPlan = async (planData: {
@@ -338,6 +384,8 @@ function App() {
     preferredTime: string;
     numberOfPosts: number;
     startDate: string;
+    generateContent: boolean;
+    platforms: string[];
   }) => {
     const dates = generateRecurringSchedule(
       scheduleData.startDate,
@@ -346,27 +394,51 @@ function App() {
       scheduleData.numberOfPosts
     );
 
-    const scheduledPostsData = dates.map((date, index) => ({
-      user_id: userId,
-      brand_profile_id: brandProfile?.id || null,
-      title: `Scheduled Post #${index + 1}`,
-      caption: 'Content to be generated',
-      hashtags: [],
-      platforms: ['instagram'],
-      image_url: '',
-      scheduled_date: date.toISOString().split('T')[0],
-      scheduled_time: scheduleData.preferredTime,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      status: 'draft' as const,
-      notes: `Auto-generated ${scheduleData.frequency} schedule`
-    }));
+    if (scheduleData.generateContent) {
+      const contentThemes = [
+        'Product Showcase', 'Behind the Scenes', 'Customer Story',
+        'Industry Insight', 'Tip & Trick', 'Educational Content',
+        'Trending Topic', 'Company Update', 'User Testimonial', 'Inspiration'
+      ];
 
-    await supabase.from('scheduled_posts').insert(scheduledPostsData);
-    
-    // Immediately update state so calendar reflects new posts
-    setScheduledPosts((prev) => [...prev, ...scheduledPostsData]);
+      const plannedPostsData = dates.map((date, index) => ({
+        content_plan_id: null,
+        user_id: userId,
+        title: `${contentThemes[index % contentThemes.length]} Post`,
+        suggested_date: date.toISOString().split('T')[0],
+        suggested_time: scheduleData.preferredTime,
+        rationale: `AI-suggested ${scheduleData.frequency} schedule on ${scheduleData.preferredDay}`,
+        content_generated: false,
+        caption: '',
+        hashtags: [],
+        platforms: scheduleData.platforms,
+        image_url: '',
+        status: 'suggested' as const,
+        order_in_plan: index
+      }));
 
-    await loadScheduledPosts();
+      await supabase.from('planned_posts').insert(plannedPostsData);
+      await loadContentPlans();
+    } else {
+      const scheduledPostsData = dates.map((date, index) => ({
+        user_id: userId,
+        brand_profile_id: brandProfile?.id || null,
+        title: `Scheduled Post #${index + 1}`,
+        caption: 'Content to be generated',
+        hashtags: [],
+        platforms: scheduleData.platforms,
+        image_url: '',
+        scheduled_date: date.toISOString().split('T')[0],
+        scheduled_time: scheduleData.preferredTime,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        status: 'draft' as const,
+        notes: `Auto-generated ${scheduleData.frequency} schedule`
+      }));
+
+      await supabase.from('scheduled_posts').insert(scheduledPostsData);
+      await loadScheduledPosts();
+    }
+
     setShowScheduleView(true);
   };
 
@@ -592,6 +664,14 @@ function App() {
           title: currentDescription,
           caption: getSelectedCaption()
         }}
+      />
+
+      <EditPostModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleUpdatePost}
+        post={editingPost}
+        type={editingPostType}
       />
 
       <ContentPlanGenerator
