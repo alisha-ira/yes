@@ -1,22 +1,47 @@
 import type { GeneratedContent, BrandProfile } from '../types';
+import { generateFormalCaption, generateCasualCaption, generateFunnyCaption, generateCTAVariations } from './captionGenerators';
+
+interface ContentInput {
+  companyName?: string;
+  productName?: string;
+  description: string;
+}
 
 export async function generateContent(
-  description: string,
+  input: string | ContentInput,
   brandProfile?: BrandProfile | null
 ): Promise<GeneratedContent> {
   await new Promise(resolve => setTimeout(resolve, 1500));
 
-  const parsedInfo = parsePrompt(description);
+  let parsedInfo: ParsedPromptInfo;
+  let description: string;
+  let companyName: string;
+  let productName: string;
+
+  if (typeof input === 'string') {
+    parsedInfo = parsePrompt(input);
+    description = input;
+    companyName = parsedInfo.brandName || brandProfile?.name || 'We';
+    productName = parsedInfo.productName || '';
+  } else {
+    companyName = input.companyName || brandProfile?.name || 'We';
+    productName = input.productName || '';
+    description = input.description;
+    parsedInfo = parsePrompt(input.description);
+    parsedInfo.brandName = companyName;
+    parsedInfo.productName = productName;
+  }
+
   const tone = detectToneAndEmotion(description);
   const keywords = extractKeywords(description);
   const hashtags = generateHashtags(keywords, description, brandProfile, parsedInfo);
 
   return {
-    formal: generateFormalCaption(description, brandProfile, tone, parsedInfo),
-    casual: generateCasualCaption(description, brandProfile, tone, parsedInfo),
-    funny: generateFunnyCaption(description, brandProfile, tone, parsedInfo),
+    formal: generateFormalCaption(companyName, productName, description, brandProfile, tone, parsedInfo),
+    casual: generateCasualCaption(companyName, productName, description, brandProfile, tone, parsedInfo),
+    funny: generateFunnyCaption(companyName, productName, description, brandProfile, tone, parsedInfo),
     hashtags,
-    ctaVariations: generateCTAVariations(description, brandProfile, parsedInfo)
+    ctaVariations: generateCTAVariations(companyName, productName, description, brandProfile, parsedInfo)
   };
 }
 
@@ -306,175 +331,4 @@ function generateHashtags(keywords: string[], description: string, brandProfile?
   const uniqueHashtags = [...new Set(allHashtags)].filter(tag => !genericTags.has(tag.toLowerCase()));
 
   return uniqueHashtags.slice(0, 10);
-}
-
-function generateFormalCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }, parsedInfo?: ParsedPromptInfo): string {
-  const brandName = parsedInfo?.brandName || brandProfile?.name || 'We';
-  const values = brandProfile?.key_values?.[0] || 'excellence and innovation';
-
-  let cleanDesc = description.trim();
-  const descCapitalized = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
-
-  let mainContent = descCapitalized;
-
-  if (parsedInfo?.productName) {
-    mainContent = `${parsedInfo.productName} - ${descCapitalized}`;
-  } else if (parsedInfo?.eventName) {
-    mainContent = `${parsedInfo.eventName} - ${descCapitalized}`;
-  }
-
-  if (parsedInfo?.location && parsedInfo?.date) {
-    mainContent += ` Join us in ${parsedInfo.location} on ${parsedInfo.date}.`;
-  } else if (parsedInfo?.location) {
-    mainContent += ` Available in ${parsedInfo.location}.`;
-  } else if (parsedInfo?.date) {
-    mainContent += ` Mark your calendar for ${parsedInfo.date}.`;
-  }
-
-  if (parsedInfo?.price) {
-    mainContent += ` Priced at $${parsedInfo.price}.`;
-  } else if (parsedInfo?.percentage) {
-    mainContent += ` Save ${parsedInfo.percentage}% on this exclusive offer.`;
-  }
-
-  if (toneInfo?.tone === 'urgent') {
-    return `${brandName} presents an important update: ${mainContent} This timely initiative reflects our dedication to ${values}. We invite you to explore this opportunity.`;
-  } else if (toneInfo?.tone === 'celebratory') {
-    return `${brandName} is delighted to share: ${mainContent} This milestone represents our ongoing commitment to ${values}. Thank you for being part of our journey.`;
-  } else if (toneInfo?.tone === 'inspirational') {
-    return `${mainContent} At ${brandName}, we believe in the power of ${values} to create meaningful change. Join us in making a difference.`;
-  }
-
-  const templates = [
-    `${brandName} is pleased to announce: ${mainContent} This initiative embodies our commitment to ${values} and reflects our vision for the future.`,
-    `We are proud to introduce: ${mainContent} This development represents ${brandName}'s dedication to delivering exceptional value and maintaining the highest standards.`,
-    `${mainContent} ${brandName} continues to prioritize ${values}, ensuring that we meet the evolving needs of our valued community.`
-  ];
-
-  return templates[Math.floor(Math.random() * templates.length)];
-}
-
-function generateCasualCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }, parsedInfo?: ParsedPromptInfo): string {
-  const emojis = ['✨', '🎉', '🚀', '💫', '🔥', '⚡', '��'];
-  const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-
-  let cleanDesc = description.trim();
-  let descFormatted = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
-
-  if (parsedInfo?.productName) {
-    descFormatted = `Check out ${parsedInfo.productName}! ${descFormatted}`;
-  } else if (parsedInfo?.eventName) {
-    descFormatted = `${parsedInfo.eventName} is happening! ${descFormatted}`;
-  }
-
-  if (parsedInfo?.percentage) {
-    descFormatted += ` ${parsedInfo.percentage}% off right now! 🔥`;
-  } else if (parsedInfo?.price) {
-    descFormatted += ` Only $${parsedInfo.price}! 💰`;
-  }
-
-  if (parsedInfo?.date && parsedInfo?.location) {
-    descFormatted += ` See you in ${parsedInfo.location} on ${parsedInfo.date}! 📍`;
-  }
-
-  if (toneInfo?.tone === 'enthusiastic') {
-    return `${emoji} This is SO exciting! ${descFormatted} We've been working hard on this and can't wait for you to experience it! What are your thoughts? 💭`;
-  } else if (toneInfo?.tone === 'urgent') {
-    return `⏰ Quick heads up! ${descFormatted} Don't miss out on this - it's something special! Let us know what you think! 🙌`;
-  } else if (toneInfo?.tone === 'celebratory') {
-    return `🎊 Celebration time! ${descFormatted} We're so grateful for this moment and excited to share it with all of you! Drop a comment below! 💬`;
-  }
-
-  const templates = [
-    `Hey everyone! ${emoji} ${descFormatted} This is something we're really proud of. Would love to hear your thoughts! 💬`,
-    `${emoji} Big news! ${descFormatted} We've been working on this and think you're going to love it! Let us know what you think! 🙌`,
-    `Exciting update! ${emoji} ${descFormatted} Can't wait to see what you all think about this! Share your feedback below! ✨`
-  ];
-
-  return templates[Math.floor(Math.random() * templates.length)];
-}
-
-function generateFunnyCaption(description: string, brandProfile?: BrandProfile | null, toneInfo?: { tone: string; emotion: string; keywords: string[] }, parsedInfo?: ParsedPromptInfo): string {
-  const brandName = parsedInfo?.brandName || brandProfile?.name || 'We';
-
-  let cleanDesc = description.trim();
-  let descFormatted = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
-
-  if (parsedInfo?.productName) {
-    descFormatted = `Introducing ${parsedInfo.productName} - ${descFormatted}`;
-  } else if (parsedInfo?.eventName) {
-    descFormatted = `${parsedInfo.eventName} alert! ${descFormatted}`;
-  }
-
-  if (parsedInfo?.percentage) {
-    descFormatted += ` ${parsedInfo.percentage}% off because we like you that much! 😎`;
-  }
-
-  if (toneInfo?.tone === 'urgent') {
-    return `🚨 Alert! Alert! ${descFormatted} (No, this isn't a drill, and yes, we're more excited than a kid in a candy store 🍭) Don't sleep on this one!`;
-  } else if (toneInfo?.tone === 'celebratory') {
-    return `🎉 Hold the phone! ${descFormatted} ${brandName} is out here living our best life, and we want you to join the party! Who's ready to celebrate? 🥳`;
-  }
-
-  const templates = [
-    `Plot twist nobody saw coming: ${descFormatted} 🎬 ${brandName} guarantees this is cooler than your favorite Netflix series. Ready to dive in?`,
-    `Breaking: ${descFormatted} 📢 (And nope, we didn't accidentally press send too early this time 😅) Actually super proud of this one! Who's in?`,
-    `${descFormatted} ...because ${brandName} doesn't do boring! 🎪 We promise this is more interesting than scrolling through your ex's vacation photos. Let's go! 🚀`
-  ];
-
-  return templates[Math.floor(Math.random() * templates.length)];
-}
-
-function generateCTAVariations(description: string, brandProfile?: BrandProfile | null, parsedInfo?: ParsedPromptInfo) {
-  const lowerDesc = description.toLowerCase();
-  const brandName = parsedInfo?.brandName || brandProfile?.name || 'us';
-
-  const formalCTAs = [
-    'Visit our website to learn more about this initiative.',
-    'Connect with our team to discover how this can benefit you.',
-    'Register your interest through the link in our bio.',
-    'Schedule a consultation to explore this opportunity.',
-    'Download our comprehensive guide for detailed insights.'
-  ];
-
-  const casualCTAs = [
-    'Check out the link in bio to learn more! 🔗',
-    'Drop a comment and let us know what you think! 💬',
-    'Share this with someone who needs to see it! 📲',
-    'Follow for more updates coming soon! ✨',
-    `DM ${brandName} to get started today! 💌`,
-    'Tag a friend who would love this! 👥'
-  ];
-
-  const funnyCTAs = [
-    `Slide into our DMs - we don't bite! 😁`,
-    `Click the link before your coffee gets cold! ☕`,
-    `Your future self will thank you for clicking that link! 🚀`,
-    `Don't just scroll - double tap if you're in! ❤️`,
-    `Tag that friend who needs this in their life ASAP! 🎯`
-  ];
-
-  let selectedFormal = formalCTAs[0];
-  let selectedCasual = casualCTAs[0];
-  let selectedFunny = funnyCTAs[0];
-
-  if (lowerDesc.includes('sale') || lowerDesc.includes('discount')) {
-    selectedFormal = 'Take advantage of this limited-time offer through our website.';
-    selectedCasual = 'Grab this deal before it\'s gone! Link in bio 🔥';
-    selectedFunny = 'Your wallet called - it wants you to check this out! 💸';
-  } else if (lowerDesc.includes('launch') || lowerDesc.includes('new')) {
-    selectedFormal = 'Be among the first to experience this innovation.';
-    selectedCasual = 'Get early access through our link! 🚀';
-    selectedFunny = 'Don\'t be the last one to the party! Click that link! 🎉';
-  } else if (lowerDesc.includes('learn') || lowerDesc.includes('guide') || lowerDesc.includes('how')) {
-    selectedFormal = 'Access our comprehensive resources through the link provided.';
-    selectedCasual = 'Learn more in our latest guide - link in bio! 📚';
-    selectedFunny = 'Level up your knowledge - click here! 🧠';
-  }
-
-  return {
-    formal: selectedFormal,
-    casual: selectedCasual,
-    funny: selectedFunny
-  };
 }

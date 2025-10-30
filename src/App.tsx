@@ -182,7 +182,7 @@ function App() {
     setIsGenerating(true);
     setCurrentStep(1);
 
-    const fullDescription = `Brand name: ${companyName}. Product name: ${productName}. ${description}`;
+    const fullDescription = `${companyName} ${productName}. ${description}`;
     setCurrentDescription(fullDescription);
 
     try {
@@ -193,7 +193,11 @@ function App() {
         setResizedImages(resized as ResizedImages);
       }
 
-      const content = await generateContent(fullDescription, brandProfile);
+      const content = await generateContent({
+        companyName,
+        productName,
+        description
+      }, brandProfile);
       setGeneratedContent(content);
       setImageUrl(uploadedImageUrl);
       setCurrentStep(2);
