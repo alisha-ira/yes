@@ -59,11 +59,8 @@ export function ScheduledPostsList({ scheduledPosts, plannedPosts, selectedDate,
 
   const filteredPosts = selectedDate
     ? allPosts.filter(post => {
-        const year = selectedDate.getFullYear();
-        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-        const day = String(selectedDate.getDate()).padStart(2, '0');
-        const selectedDateStr = `${year}-${month}-${day}`;
-        return post.date === selectedDateStr;
+        const postDate = new Date(post.date);
+        return postDate.toDateString() === selectedDate.toDateString();
       })
     : allPosts;
 
