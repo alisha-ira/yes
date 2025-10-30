@@ -205,6 +205,12 @@ function App() {
       await saveContentToHistory(description, content, uploadedImageUrl, resized as ResizedImages | undefined);
     } catch (error) {
       console.error('Error generating content:', error);
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert('An error occurred while generating content. Please try again.');
+      }
+      setGeneratedContent(null);
     } finally {
       setIsGenerating(false);
     }
