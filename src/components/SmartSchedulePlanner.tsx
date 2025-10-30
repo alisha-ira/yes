@@ -10,8 +10,6 @@ interface SmartSchedulePlannerProps {
     preferredTime: string;
     numberOfPosts: number;
     startDate: string;
-    generateContent: boolean;
-    platforms: string[];
   }) => void;
 }
 
@@ -72,8 +70,6 @@ export function SmartSchedulePlanner({ isOpen, onClose, onGenerateSchedule }: Sm
     return tomorrow.toISOString().split('T')[0];
   });
   const [useBestTime, setUseBestTime] = useState(false);
-  const [generateContent, setGenerateContent] = useState(true);
-  const [platforms, setPlatforms] = useState<string[]>(['instagram']);
 
   const frequencyOptions = [
     {
@@ -115,23 +111,13 @@ export function SmartSchedulePlanner({ isOpen, onClose, onGenerateSchedule }: Sm
     setUseBestTime(false);
   };
 
-  const togglePlatform = (platform: string) => {
-    setPlatforms(prev =>
-      prev.includes(platform)
-        ? prev.filter(p => p !== platform)
-        : [...prev, platform]
-    );
-  };
-
   const handleGenerate = () => {
     onGenerateSchedule({
       frequency,
       preferredDay,
       preferredTime,
       numberOfPosts,
-      startDate,
-      generateContent,
-      platforms
+      startDate
     });
     onClose();
   };
@@ -303,54 +289,6 @@ export function SmartSchedulePlanner({ isOpen, onClose, onGenerateSchedule }: Sm
               <span>4 posts</span>
               <span>52 posts</span>
             </div>
-          </div>
-
-          <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-xl border border-green-200">
-            <div className="flex items-start gap-3 mb-4">
-              <Sparkles className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-1 text-sm">AI Content Generation</h3>
-                <p className="text-xs text-gray-600 mb-3">
-                  Let AI automatically generate post ideas and content for your schedule
-                </p>
-              </div>
-            </div>
-
-            <label className="flex items-center gap-3 cursor-pointer mb-4">
-              <input
-                type="checkbox"
-                checked={generateContent}
-                onChange={(e) => setGenerateContent(e.target.checked)}
-                className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                Generate AI content for scheduled posts
-              </span>
-            </label>
-
-            {generateContent && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Target Platforms
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['instagram', 'twitter', 'linkedin', 'facebook'].map(platform => (
-                    <button
-                      key={platform}
-                      type="button"
-                      onClick={() => togglePlatform(platform)}
-                      className={`p-2 rounded-lg border-2 transition-all text-xs font-medium capitalize ${
-                        platforms.includes(platform)
-                          ? 'border-green-500 bg-green-100 text-green-700'
-                          : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      {platform}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
