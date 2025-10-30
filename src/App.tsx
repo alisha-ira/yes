@@ -52,9 +52,9 @@ function App() {
   const [contentPlans, setContentPlans] = useState<ContentPlan[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
-  const [showAlarmView, setShowAlarmView] = useState(false);
   const [showAlarmModal, setShowAlarmModal] = useState(false);
   const [alarms, setAlarms] = useState<Alarm[]>([]);
+  const [linkedPostForAlarm, setLinkedPostForAlarm] = useState<ScheduledPost | PlannedPost | undefined>();
 
   useEffect(() => {
     loadBrandProfile();
@@ -452,32 +452,15 @@ function App() {
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <button
-              onClick={() => {
-                setShowScheduleView(!showScheduleView);
-                setShowAlarmView(false);
-              }}
+              onClick={() => setShowScheduleView(!showScheduleView)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow text-sm font-medium ${
-                showScheduleView && !showAlarmView
+                showScheduleView
                   ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white'
                   : 'bg-white text-gray-700'
               }`}
             >
               <CalendarDays className="w-4 h-4" />
-              {showScheduleView && !showAlarmView ? 'Content Generator' : 'Calendar View'}
-            </button>
-            <button
-              onClick={() => {
-                setShowAlarmView(!showAlarmView);
-                setShowScheduleView(false);
-              }}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow text-sm font-medium ${
-                showAlarmView
-                  ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white'
-                  : 'bg-white text-gray-700'
-              }`}
-            >
-              <Bell className="w-4 h-4" />
-              Alarms {alarms.filter(a => a.status === 'active').length > 0 && `(${alarms.filter(a => a.status === 'active').length})`}
+              {showScheduleView ? 'Content Generator' : 'Calendar & Alarms'}
             </button>
             <button
               onClick={() => setShowBrandModal(true)}
@@ -525,14 +508,7 @@ function App() {
 
         {showVideoTips && <VideoOptimizationTips />}
 
-        {showAlarmView ? (
-          <AlarmManager
-            alarms={alarms}
-            onAddAlarm={() => setShowAlarmModal(true)}
-            onDeleteAlarm={handleDeleteAlarm}
-            onDismissAlarm={handleDismissAlarm}
-          />
-        ) : !showScheduleView ? (
+        {!showScheduleView ? (
           <>
             <ContentHistory
               history={contentHistory}
@@ -634,6 +610,18 @@ function App() {
               </div>
             </div>
 
+            <div className="mb-6">
+              <AlarmManager
+                alarms={alarms}
+                onAddAlarm={() => {
+                  setLinkedPostForAlarm(undefined);
+                  setShowAlarmModal(true);
+                }}
+                onDeleteAlarm={handleDeleteAlarm}
+                onDismissAlarm={handleDismissAlarm}
+              />
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
                 <Calendar
@@ -651,6 +639,10 @@ function App() {
                   selectedDate={selectedDate}
                   onEdit={handleEditScheduledPost}
                   onDelete={handleDeletePost}
+                  onSetAlarm={(post) => {
+                    setLinkedPostForAlarm(post);
+                    setShowAlarmModal(true);
+                  }}
                 />
               </div>
             </div>
@@ -690,8 +682,12 @@ function App() {
 
       <AlarmModal
         isOpen={showAlarmModal}
-        onClose={() => setShowAlarmModal(false)}
+        onClose={() => {
+          setShowAlarmModal(false);
+          setLinkedPostForAlarm(undefined);
+        }}
         onCreateAlarm={handleCreateAlarm}
+        linkedPost={linkedPostForAlarm}
       />
     </div>
   );

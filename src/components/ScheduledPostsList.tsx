@@ -1,4 +1,4 @@
-import { Clock, Instagram, Twitter, Linkedin, Facebook, Edit, Trash2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { Clock, Instagram, Twitter, Linkedin, Facebook, Edit, Trash2, CheckCircle, AlertCircle, Sparkles, Bell } from 'lucide-react';
 import type { ScheduledPost, PlannedPost } from '../types';
 
 interface ScheduledPostsListProps {
@@ -7,9 +7,10 @@ interface ScheduledPostsListProps {
   selectedDate: Date | null;
   onEdit: (post: ScheduledPost | PlannedPost) => void;
   onDelete: (id: string, type: 'scheduled' | 'planned') => void;
+  onSetAlarm: (post: ScheduledPost | PlannedPost) => void;
 }
 
-export function ScheduledPostsList({ scheduledPosts, plannedPosts, selectedDate, onEdit, onDelete }: ScheduledPostsListProps) {
+export function ScheduledPostsList({ scheduledPosts, plannedPosts, selectedDate, onEdit, onDelete, onSetAlarm }: ScheduledPostsListProps) {
   const adjustDateForSingapore = (dateStr: string): string => {
     const date = new Date(dateStr + 'T00:00:00Z');
     date.setDate(date.getDate() - 1);
@@ -172,6 +173,13 @@ export function ScheduledPostsList({ scheduledPosts, plannedPosts, selectedDate,
                 </div>
 
                 <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => onSetAlarm(post)}
+                    className="p-2 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+                    title="Set alarm for this post"
+                  >
+                    <Bell className="w-4 h-4 text-orange-600" />
+                  </button>
                   <button
                     onClick={() => onEdit(post)}
                     className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
