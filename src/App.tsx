@@ -17,6 +17,7 @@ import { ContentPlanGenerator } from './components/ContentPlanGenerator';
 import { SmartSchedulePlanner } from './components/SmartSchedulePlanner';
 import { AlarmManager } from './components/AlarmManager';
 import { AlarmModal } from './components/AlarmModal';
+import { StepNavigator } from './components/StepNavigator';
 import { generateContent } from './services/contentGenerator';
 import { resizeImageForPlatforms } from './services/imageResizer';
 import { generateVisualSuggestions, generatePostOutline } from './services/visualGenerator';
@@ -224,6 +225,16 @@ function App() {
     }
   };
 
+  const handleStepClick = (step: 1 | 2 | 3) => {
+    if (step === 1) {
+      setCurrentStep(1);
+    } else if (step === 2 && generatedContent) {
+      setCurrentStep(2);
+    } else if (step === 3 && generatedContent && selectedTone) {
+      setCurrentStep(3);
+    }
+  };
+
   const handleLoadContent = (content: ContentHistoryType) => {
     setGeneratedContent({
       formal: content.formal_caption,
@@ -279,6 +290,7 @@ function App() {
       });
 
     loadScheduledPosts();
+    setShowScheduleModal(false);
   };
 
   const handleDeleteScheduledPost = async (id: string) => {
@@ -402,6 +414,18 @@ function App() {
     return cta ? `${baseCaption}\n\n${cta}` : baseCaption;
   };
 
+  const getPostTitle = (): string => {
+    const maxLength = 50;
+    const desc = currentDescription.trim();
+
+    const firstSentence = desc.split(/[.!?]/)[0];
+    if (firstSentence.length <= maxLength) {
+      return firstSentence;
+    }
+
+    return desc.substring(0, maxLength) + '...';
+  };
+
   const handleCreateAlarm = async (alarmData: {
     title: string;
     alarmDatetime: string;
@@ -485,47 +509,31 @@ function App() {
           </div>
         </header>
 
-        <div className="mb-8">
-          <div className="flex items-center justify-center gap-4">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div className={`flex items-center gap-2 ${step <= currentStep ? 'opacity-100' : 'opacity-30'}`}>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white transition-all ${
-                    step < currentStep
-                      ? 'bg-green-500'
-                      : step === currentStep
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-600'
-                      : 'bg-gray-300'
-                  }`}>
-                    {step}
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 hidden md:inline">
-                    {step === 1 && 'Input'}
-                    {step === 2 && 'Generate'}
-                    {step === 3 && 'Preview & Export'}
-                  </span>
-                </div>
-                {step < 3 && (
-                  <div className={`w-12 h-1 mx-2 rounded ${step < currentStep ? 'bg-green-500' : 'bg-gray-300'}`} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
         {showVideoTips && <VideoOptimizationTips />}
 
         {!showScheduleView ? (
           <>
-            <ContentHistory
-              history={contentHistory}
-              onLoadContent={handleLoadContent}
-              onDeleteContent={handleDeleteContent}
+            <StepNavigator
+              currentStep={currentStep}
+              onStepClick={handleStepClick}
+              canNavigate={{
+                step1: true,
+                step2: generatedContent !== null,
+                step3: generatedContent !== null && selectedTone !== null
+              }}
             />
+            {currentStep === 1 && (
+              <>
+                <ContentHistory
+                  history={contentHistory}
+                  onLoadContent={handleLoadContent}
+                  onDeleteContent={handleDeleteContent}
+                />
+                <InputSection onGenerate={handleGenerate} isGenerating={isGenerating} />
+              </>
+            )}
 
-            <InputSection onGenerate={handleGenerate} isGenerating={isGenerating} />
-
-            {generatedContent && (
+            {currentStep === 2 && generatedContent && (
               <>
                 {visualSuggestions.length > 0 && (
                   <VisualSuggestions suggestions={visualSuggestions} />
@@ -543,6 +551,11 @@ function App() {
                     });
                   }}
                 />
+              </>
+            )}
+
+            {currentStep === 3 && generatedContent && (
+              <>
                 <PlatformPreviews
                   caption={getSelectedCaption()}
                   hashtags={generatedContent.hashtags}
@@ -677,7 +690,7 @@ function App() {
         onClose={() => setShowScheduleModal(false)}
         onSchedule={handleSchedulePost}
         prefilledData={{
-          title: currentDescription,
+          title: getPostTitle(),
           caption: getSelectedCaption()
         }}
       />
