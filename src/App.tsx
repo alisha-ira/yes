@@ -178,10 +178,12 @@ function App() {
     loadContentHistory();
   };
 
-  const handleGenerate = async (description: string, uploadedImageUrl: string | null, imageFile?: File) => {
+  const handleGenerate = async (companyName: string, productName: string, description: string, uploadedImageUrl: string | null, imageFile?: File) => {
     setIsGenerating(true);
     setCurrentStep(1);
-    setCurrentDescription(description);
+
+    const fullDescription = `Brand name: ${companyName}. Product name: ${productName}. ${description}`;
+    setCurrentDescription(fullDescription);
 
     try {
       let resized: ResizedImages | undefined;
@@ -191,25 +193,20 @@ function App() {
         setResizedImages(resized as ResizedImages);
       }
 
-      const content = await generateContent(description, brandProfile);
+      const content = await generateContent(fullDescription, brandProfile);
       setGeneratedContent(content);
       setImageUrl(uploadedImageUrl);
       setCurrentStep(2);
 
-      const suggestions = generateVisualSuggestions(description, brandProfile);
+      const suggestions = generateVisualSuggestions(fullDescription, brandProfile);
       setVisualSuggestions(suggestions);
 
-      const outline = generatePostOutline(description, brandProfile?.tone || 'casual', brandProfile);
+      const outline = generatePostOutline(fullDescription, brandProfile?.tone || 'casual', brandProfile);
       setPostOutline(outline);
 
-      await saveContentToHistory(description, content, uploadedImageUrl, resized as ResizedImages | undefined);
+      await saveContentToHistory(fullDescription, content, uploadedImageUrl, resized as ResizedImages | undefined);
     } catch (error) {
       console.error('Error generating content:', error);
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert('An error occurred while generating content. Please try again.');
-      }
       setGeneratedContent(null);
     } finally {
       setIsGenerating(false);

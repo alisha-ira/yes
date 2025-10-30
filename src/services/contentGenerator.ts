@@ -4,11 +4,6 @@ export async function generateContent(
   description: string,
   brandProfile?: BrandProfile | null
 ): Promise<GeneratedContent> {
-  const validationError = validateInput(description);
-  if (validationError) {
-    throw new Error(validationError);
-  }
-
   await new Promise(resolve => setTimeout(resolve, 1500));
 
   const parsedInfo = parsePrompt(description);
