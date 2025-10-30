@@ -533,7 +533,15 @@ function App() {
                 {postOutline && <PostOutline outline={postOutline} />}
 
                 <CaptionSelector content={generatedContent} onSelectTone={handleSelectTone} />
-                <HashtagDisplay hashtags={generatedContent.hashtags} />
+                <HashtagDisplay
+                  hashtags={generatedContent.hashtags}
+                  onHashtagsChange={(updatedHashtags) => {
+                    setGeneratedContent({
+                      ...generatedContent,
+                      hashtags: updatedHashtags
+                    });
+                  }}
+                />
                 <PlatformPreviews
                   caption={getSelectedCaption()}
                   hashtags={generatedContent.hashtags}
