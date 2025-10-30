@@ -11,12 +11,6 @@ interface ScheduledPostsListProps {
 }
 
 export function ScheduledPostsList({ scheduledPosts, plannedPosts, selectedDate, onEdit, onDelete, onSetAlarm }: ScheduledPostsListProps) {
-  const adjustDateForSingapore = (dateStr: string): string => {
-    const date = new Date(dateStr + 'T00:00:00Z');
-    date.setDate(date.getDate() - 1);
-    return date.toISOString().split('T')[0];
-  };
-
   const platformIcons = {
     instagram: Instagram,
     twitter: Twitter,
@@ -45,13 +39,13 @@ export function ScheduledPostsList({ scheduledPosts, plannedPosts, selectedDate,
     ...scheduledPosts.map(post => ({
       ...post,
       type: 'scheduled' as const,
-      date: adjustDateForSingapore(post.scheduled_date),
+      date: post.scheduled_date,
       time: post.scheduled_time
     })),
     ...plannedPosts.map(post => ({
       ...post,
       type: 'planned' as const,
-      date: adjustDateForSingapore(post.suggested_date),
+      date: post.suggested_date,
       time: post.suggested_time,
       platforms: post.platforms || [],
       caption: post.caption || 'AI-generated content plan'
@@ -75,7 +69,8 @@ export function ScheduledPostsList({ scheduledPosts, plannedPosts, selectedDate,
   });
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const [year, month, day] = dateStr.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
