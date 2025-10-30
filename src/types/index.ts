@@ -110,3 +110,19 @@ export interface ScheduledPost {
   created_at: string;
   updated_at: string;
 }
+
+export interface Alarm {
+  id: string;
+  user_id: string;
+  title: string;
+  alarm_datetime: string;
+  scheduled_post_id: string | null;
+  planned_post_id: string | null;
+  status: 'active' | 'triggered' | 'dismissed';
+  sound_enabled: boolean;
+  notification_enabled: boolean;
+  notes: string;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}

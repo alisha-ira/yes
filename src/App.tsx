@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Building2, CalendarDays } from 'lucide-react';
+import { Sparkles, Building2, CalendarDays, Bell } from 'lucide-react';
 import { InputSection } from './components/InputSection';
 import { CaptionSelector } from './components/CaptionSelector';
 import { HashtagDisplay } from './components/HashtagDisplay';
@@ -15,13 +15,15 @@ import { ScheduleModal } from './components/ScheduleModal';
 import { ScheduledPostsList } from './components/ScheduledPostsList';
 import { ContentPlanGenerator } from './components/ContentPlanGenerator';
 import { SmartSchedulePlanner } from './components/SmartSchedulePlanner';
+import { AlarmManager } from './components/AlarmManager';
+import { AlarmModal } from './components/AlarmModal';
 import { generateContent } from './services/contentGenerator';
 import { resizeImageForPlatforms } from './services/imageResizer';
 import { generateVisualSuggestions, generatePostOutline } from './services/visualGenerator';
 import { generateRecurringSchedule } from './services/scheduleGenerator';
 import type { PlannedPost as PlannedPostServiceType } from './services/contentPlanner';
 import { supabase } from './lib/supabase';
-import type { GeneratedContent, ToneType, BrandProfile, ResizedImages, ContentHistory as ContentHistoryType, ScheduledPost, PlannedPost, ContentPlan } from './types';
+import type { GeneratedContent, ToneType, BrandProfile, ResizedImages, ContentHistory as ContentHistoryType, ScheduledPost, PlannedPost, ContentPlan, Alarm } from './types';
 
 function App() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -50,12 +52,16 @@ function App() {
   const [contentPlans, setContentPlans] = useState<ContentPlan[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
+  const [showAlarmView, setShowAlarmView] = useState(false);
+  const [showAlarmModal, setShowAlarmModal] = useState(false);
+  const [alarms, setAlarms] = useState<Alarm[]>([]);
 
   useEffect(() => {
     loadBrandProfile();
     loadContentHistory();
     loadScheduledPosts();
     loadContentPlans();
+    loadAlarms();
   }, []);
 
   const loadBrandProfile = async () => {
@@ -106,6 +112,18 @@ function App() {
     }
     if (postsData.data) {
       setPlannedPosts(postsData.data as PlannedPost[]);
+    }
+  };
+
+  const loadAlarms = async () => {
+    const { data } = await supabase
+      .from('alarms')
+      .select('*')
+      .eq('user_id', userId)
+      .order('alarm_datetime', { ascending: true });
+
+    if (data) {
+      setAlarms(data as Alarm[]);
     }
   };
 
@@ -377,6 +395,45 @@ function App() {
     return cta ? `${baseCaption}\n\n${cta}` : baseCaption;
   };
 
+  const handleCreateAlarm = async (alarmData: {
+    title: string;
+    alarmDatetime: string;
+    scheduledPostId: string | null;
+    plannedPostId: string | null;
+    soundEnabled: boolean;
+    notificationEnabled: boolean;
+    notes: string;
+  }) => {
+    await supabase
+      .from('alarms')
+      .insert({
+        user_id: userId,
+        title: alarmData.title,
+        alarm_datetime: alarmData.alarmDatetime,
+        scheduled_post_id: alarmData.scheduledPostId,
+        planned_post_id: alarmData.plannedPostId,
+        sound_enabled: alarmData.soundEnabled,
+        notification_enabled: alarmData.notificationEnabled,
+        notes: alarmData.notes,
+        status: 'active',
+      });
+
+    loadAlarms();
+  };
+
+  const handleDeleteAlarm = async (id: string) => {
+    await supabase.from('alarms').delete().eq('id', id);
+    loadAlarms();
+  };
+
+  const handleDismissAlarm = async (id: string) => {
+    await supabase
+      .from('alarms')
+      .update({ status: 'dismissed' })
+      .eq('id', id);
+    loadAlarms();
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
@@ -393,17 +450,34 @@ function App() {
           <p className="text-gray-600 text-lg mb-4">
             AI-Powered Content Generator with Visual Suggestions
           </p>
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
             <button
-              onClick={() => setShowScheduleView(!showScheduleView)}
+              onClick={() => {
+                setShowScheduleView(!showScheduleView);
+                setShowAlarmView(false);
+              }}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow text-sm font-medium ${
-                showScheduleView
+                showScheduleView && !showAlarmView
                   ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white'
                   : 'bg-white text-gray-700'
               }`}
             >
               <CalendarDays className="w-4 h-4" />
-              {showScheduleView ? 'Content Generator' : 'Calendar View'}
+              {showScheduleView && !showAlarmView ? 'Content Generator' : 'Calendar View'}
+            </button>
+            <button
+              onClick={() => {
+                setShowAlarmView(!showAlarmView);
+                setShowScheduleView(false);
+              }}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow text-sm font-medium ${
+                showAlarmView
+                  ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white'
+                  : 'bg-white text-gray-700'
+              }`}
+            >
+              <Bell className="w-4 h-4" />
+              Alarms {alarms.filter(a => a.status === 'active').length > 0 && `(${alarms.filter(a => a.status === 'active').length})`}
             </button>
             <button
               onClick={() => setShowBrandModal(true)}
@@ -451,7 +525,14 @@ function App() {
 
         {showVideoTips && <VideoOptimizationTips />}
 
-        {!showScheduleView ? (
+        {showAlarmView ? (
+          <AlarmManager
+            alarms={alarms}
+            onAddAlarm={() => setShowAlarmModal(true)}
+            onDeleteAlarm={handleDeleteAlarm}
+            onDismissAlarm={handleDismissAlarm}
+          />
+        ) : !showScheduleView ? (
           <>
             <ContentHistory
               history={contentHistory}
@@ -605,6 +686,12 @@ function App() {
         isOpen={showSmartPlanner}
         onClose={() => setShowSmartPlanner(false)}
         onGenerateSchedule={handleGenerateSmartSchedule}
+      />
+
+      <AlarmModal
+        isOpen={showAlarmModal}
+        onClose={() => setShowAlarmModal(false)}
+        onCreateAlarm={handleCreateAlarm}
       />
     </div>
   );
