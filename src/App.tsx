@@ -272,7 +272,7 @@ function App() {
   }) => {
     if (!generatedContent) return;
 
-    await supabase
+    const { error } = await supabase
       .from('scheduled_posts')
       .insert({
         user_id: userId,
@@ -289,8 +289,11 @@ function App() {
         notes: scheduleData.notes
       });
 
-    loadScheduledPosts();
-    setShowScheduleModal(false);
+    if (!error) {
+      await loadScheduledPosts();
+      setShowScheduleModal(false);
+      setShowScheduleView(true);
+    }
   };
 
   const handleDeleteScheduledPost = async (id: string) => {
@@ -564,18 +567,36 @@ function App() {
                 />
 
                 <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800 mb-1">Ready to schedule?</h3>
-                      <p className="text-sm text-gray-600">Schedule this content for future posting</p>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-1">Ready to schedule?</h3>
+                        <p className="text-sm text-gray-600">Schedule this content for future posting or view your calendar</p>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setShowScheduleView(true)}
+                          className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all flex items-center gap-2"
+                        >
+                          <CalendarDays className="w-5 h-5" />
+                          View Calendar
+                        </button>
+                        <button
+                          onClick={() => setShowScheduleModal(true)}
+                          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-cyan-700 transition-all flex items-center gap-2"
+                        >
+                          <CalendarDays className="w-5 h-5" />
+                          Schedule Post
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => setShowScheduleModal(true)}
-                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-cyan-700 transition-all flex items-center gap-2"
-                    >
-                      <CalendarDays className="w-5 h-5" />
-                      Schedule Post
-                    </button>
+                    {scheduledPosts.length > 0 && (
+                      <div className="border-t pt-4">
+                        <p className="text-sm text-gray-600 mb-2">
+                          You have {scheduledPosts.length} scheduled post{scheduledPosts.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
